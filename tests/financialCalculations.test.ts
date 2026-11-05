@@ -1578,6 +1578,227 @@ Call 18002586161/SMS BLOCK CC 3230 to 7308080808`;
     'Schema v4 Master CSV round-trips accountLastDigits and linkedAccountId on both bank holdings and cards/loans'
   );
 
+  // 21. Multi-Debt Cascading Repayment, Residual Deposit & Transparent Ledger Split
+  console.log('\n[Suite 21: Multi-Debt Cascading Repayment, Residual Deposit & Ledger Split]');
+
+  // Scenario 21A: User is owed 10,000 on Loan A and 1,000 on Loan B from "Ramesh".
+  // Ramesh pays 11,000: exactly 10,000 clears Loan A, 1,000 clears Loan B, both are settled/archived, and Ramesh owes 0.
+  const rameshLoanA: Receivable = {
+    id: 'rec-ramesh-1',
+    debtorName: 'Ramesh',
+    currency: 'INR',
+    principalAmount: 10000,
+    outstandingAmount: 10000,
+    interestRatePct: 0,
+    issueDate: '2026-10-01',
+    confidencePct: 100,
+    direction: 'lent',
+    status: 'active',
+    repayments: [],
+    notes: 'Personal Loan 1',
+  };
+
+  const rameshLoanB: Receivable = {
+    id: 'rec-ramesh-2',
+    debtorName: 'Ramesh',
+    currency: 'INR',
+    principalAmount: 1000,
+    outstandingAmount: 1000,
+    interestRatePct: 0,
+    issueDate: '2026-10-15',
+    confidencePct: 100,
+    direction: 'lent',
+    status: 'active',
+    repayments: [],
+    notes: 'Personal Loan 2',
+  };
+
+  const userPrimaryBank: Holding = {
+    id: 'hold-primary-bank',
+    name: 'Primary HDFC Savings',
+    typeId: 'type-bank',
+    currency: 'INR',
+    principalOrValue: 25000,
+    liquidityClass: 'Immediate',
+  };
+
+  const cascadeRecon11k = reconcileDebtorPaymentOrOffset({
+    receivables: [rameshLoanA, rameshLoanB],
+    holdings: [userPrimaryBank],
+    transactions: [],
+    receivableId: 'rec-ramesh-1', // Target Loan A first
+    debtorName: 'Ramesh',
+    paidAmount: 11000,
+    mode: 'cash_deposit',
+    depositAccountId: 'hold-primary-bank',
+    date: '2026-11-05',
+    currency: 'INR',
+  });
+
+  assert(cascadeRecon11k.success === true, 'Cascade payment of 11,000 succeeded');
+  assert(cascadeRecon11k.principalReducedTotal === 11000, 'Total principal reduced equals exactly 11,000');
+  assert(cascadeRecon11k.excessAdvanceAmount === 0, 'Zero excess advance as both debts equal 11,000');
+
+  const updatedA = cascadeRecon11k.updatedReceivables.find((r) => r.id === 'rec-ramesh-1')!;
+  const updatedB = cascadeRecon11k.updatedReceivables.find((r) => r.id === 'rec-ramesh-2')!;
+
+  assert(
+    updatedA.outstandingAmount === 0 && updatedA.status === 'collected' && updatedA.isArchived === true,
+    'Loan A (10,000) is 100% paid down and archived'
+  );
+  assert(
+    updatedB.outstandingAmount === 0 && updatedB.status === 'collected' && updatedB.isArchived === true,
+    'Remaining 1,000 cascaded to Loan B (1,000), clearing it 100% and archiving it'
+  );
+
+  // Check that person still owes user something or not via groupReceivablesByCounterparty
+  const rameshGrouped = groupReceivablesByCounterparty(cascadeRecon11k.updatedReceivables);
+  const rameshActive = rameshGrouped.find((g) => g.name.toLowerCase() === 'ramesh');
+  assert(
+    rameshActive === undefined || Math.abs(rameshActive.netBalance) <= 0.01,
+    'Counterparty group confirms Ramesh owes nothing (net balance 0, all debts settled)'
+  );
+
+  // Check distinct ledger logging: exactly 2 distinct transactions created
+  assert(
+    cascadeRecon11k.newLedgerTransactions !== undefined &&
+      cascadeRecon11k.newLedgerTransactions.length === 2,
+    'Distinct ledger logging: Exactly 2 separate transactions created (one for 10,000 on Loan A and one for 1,000 on Loan B)'
+  );
+  assert(
+    cascadeRecon11k.newLedgerTransactions![0].amount === 10000 &&
+      cascadeRecon11k.newLedgerTransactions![0].linkedReceivableId === 'rec-ramesh-1' &&
+      cascadeRecon11k.newLedgerTransactions![1].amount === 1000 &&
+      cascadeRecon11k.newLedgerTransactions![1].linkedReceivableId === 'rec-ramesh-2',
+    'Ledger transactions accurately log individual amounts (10,000 and 1,000) and link to respective loan IDs'
+  );
+
+  // Check bank account balance credited
+  const updatedBank = cascadeRecon11k.updatedHoldings.find((h) => h.id === 'hold-primary-bank')!;
+  assert(
+    updatedBank.principalOrValue === 36000,
+    'User primary bank account credited with 11,000 (25,000 + 11,000 = 36,000)'
+  );
+
+  // Scenario 21B: Partial Cascade + Person Still Owes User
+  // Suresh owes 10,000 on Loan 1 and 3,000 on Loan 2 (Total: 13,000). Suresh pays 11,000.
+  // Loan 1 gets 10,000 (cleared), Loan 2 gets 1,000 (2,000 remaining). Suresh still owes 2,000.
+  const sureshLoanA: Receivable = {
+    id: 'rec-suresh-1',
+    debtorName: 'Suresh',
+    currency: 'INR',
+    principalAmount: 10000,
+    outstandingAmount: 10000,
+    interestRatePct: 0,
+    issueDate: '2026-10-01',
+    confidencePct: 100,
+    direction: 'lent',
+    status: 'active',
+    repayments: [],
+  };
+
+  const sureshLoanB: Receivable = {
+    id: 'rec-suresh-2',
+    debtorName: 'Suresh',
+    currency: 'INR',
+    principalAmount: 3000,
+    outstandingAmount: 3000,
+    interestRatePct: 0,
+    issueDate: '2026-10-15',
+    confidencePct: 100,
+    direction: 'lent',
+    status: 'active',
+    repayments: [],
+  };
+
+  const cascadeSuresh = reconcileDebtorPaymentOrOffset({
+    receivables: [sureshLoanA, sureshLoanB],
+    holdings: [userPrimaryBank],
+    transactions: [],
+    receivableId: 'rec-suresh-1',
+    debtorName: 'Suresh',
+    paidAmount: 11000,
+    mode: 'cash_deposit',
+    depositAccountId: 'hold-primary-bank',
+    date: '2026-11-05',
+    currency: 'INR',
+  });
+
+  const sureshUpdatedA = cascadeSuresh.updatedReceivables.find((r) => r.id === 'rec-suresh-1')!;
+  const sureshUpdatedB = cascadeSuresh.updatedReceivables.find((r) => r.id === 'rec-suresh-2')!;
+  assert(
+    sureshUpdatedA.outstandingAmount === 0 && sureshUpdatedA.status === 'collected',
+    'Suresh Loan 1 (10,000) fully cleared'
+  );
+  assert(
+    sureshUpdatedB.outstandingAmount === 2000 && sureshUpdatedB.status === 'partially_collected',
+    'Suresh Loan 2 reduced by 1,000 leaving 2,000 active'
+  );
+
+  const sureshGrouped = groupReceivablesByCounterparty(cascadeSuresh.updatedReceivables);
+  const sureshActive = sureshGrouped.find((g) => g.name.toLowerCase() === 'suresh')!;
+  assert(
+    sureshActive !== undefined && sureshActive.netBalance === 2000,
+    'Display clearly indicates Suresh still owes user 2,000'
+  );
+
+  // Scenario 21C: Surplus beyond all debts -> deposited into user primary bank account & logged differently in ledger
+  // Anita owes 10,000. She pays 12,000.
+  // 10,000 clears the loan; remaining 2,000 surplus is added to user primary bank account and logged as a distinct ledger transaction.
+  const anitaLoan: Receivable = {
+    id: 'rec-anita-1',
+    debtorName: 'Anita',
+    currency: 'INR',
+    principalAmount: 10000,
+    outstandingAmount: 10000,
+    interestRatePct: 0,
+    issueDate: '2026-10-01',
+    confidencePct: 100,
+    direction: 'lent',
+    status: 'active',
+    repayments: [],
+  };
+
+  const anitaBank: Holding = {
+    id: 'hold-anita-bank',
+    name: 'Primary Checking',
+    typeId: 'type-bank',
+    currency: 'INR',
+    principalOrValue: 10000,
+    liquidityClass: 'Immediate',
+  };
+
+  const cascadeAnita = reconcileDebtorPaymentOrOffset({
+    receivables: [anitaLoan],
+    holdings: [anitaBank],
+    transactions: [],
+    receivableId: 'rec-anita-1',
+    debtorName: 'Anita',
+    paidAmount: 12000,
+    mode: 'cash_deposit',
+    depositAccountId: 'hold-anita-bank',
+    date: '2026-11-05',
+    currency: 'INR',
+  });
+
+  assert(cascadeAnita.principalReducedTotal === 10000, 'Anita loan reduced by 10,000');
+  assert(cascadeAnita.excessAdvanceAmount === 2000, 'Anita excess 2,000 isolated as surplus');
+  assert(
+    cascadeAnita.newLedgerTransactions !== undefined && cascadeAnita.newLedgerTransactions.length === 2,
+    'Exactly 2 separate ledger entries created for Anita: 1 loan payoff + 1 surplus deposit'
+  );
+  assert(
+    cascadeAnita.newLedgerTransactions![0].amount === 10000 &&
+      cascadeAnita.newLedgerTransactions![1].amount === 2000 &&
+      cascadeAnita.newLedgerTransactions![1].reason.includes('Extra Money from Anita'),
+    'Surplus 2,000 is logged differently in ledger with clear explanation of extra money'
+  );
+  const updatedAnitaBank = cascadeAnita.updatedHoldings.find((h) => h.id === 'hold-anita-bank')!;
+  assert(
+    updatedAnitaBank.principalOrValue === 22000,
+    'Anita bank account holds both loan repayment + surplus deposit (10,000 + 10,000 + 2,000 = 22,000)'
+  );
+
   console.log(`\n========================================`);
   console.log(`Tests Completed: ${passed + failed} | Passed: ${passed} | Failed: ${failed}`);
   console.log(`========================================\n`);

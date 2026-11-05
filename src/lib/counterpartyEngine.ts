@@ -361,6 +361,7 @@ export interface DebtorReconciliationResult {
   updatedHoldings: Holding[];
   updatedTransactions: Transaction[];
   newLedgerTransaction?: Transaction;
+  newLedgerTransactions?: Transaction[];
   excessCreditAdvance?: Receivable;
   principalReducedTotal: number;
   excessAdvanceAmount: number;
@@ -370,13 +371,14 @@ export interface DebtorReconciliationResult {
 /**
  * MODULE 3: Bi-directional Debt Offset & Principal Reconciliation Pipeline.
  *
- * 1. Principal Reduction: Subtracts paid/offset amount from debtor's `outstandingAmount` inside `receivables`.
- * 2. Main Ledger Cash Flow: Generates a corresponding `Transaction` (`kind: 'income'` when deposited into
- *    a target asset, or `'adjustment'` when offsetting an expense/bill directly) in `transactions`.
- * 3. Referential Integrity: Stamps `repayments[].txId = newLedgerTransaction.id` on every updated receivable
- *    and prepares atomic state snapshots so multi-store commit succeeds or rolls back together.
- * 4. Over-repayment Protection: Caps principal debt reduction strictly at `outstandingAmount` (`>= 0`) and
- *    automatically records any excess payment as a flagged Credit Advance (`direction: 'borrowed'`, `isCreditAdvance: true`).
+ * 1. Multi-Debt Cascading Repayment: When a debtor pays (e.g. 11,000 for a 10,000 debt plus 1,000 for another debt),
+ *    the funds cascade: the targeted loan is paid down first, then remaining funds flow to their next debt record(s).
+ * 2. Distinct Ledger Logging: Each distinct loan settlement slice and any residual deposit or advance is logged
+ *    cleanly and separately in the transactions ledger so every rupee's destination is transparently recorded.
+ * 3. Residual Surplus Handling: If all active debts/loans for the counterparty are fully settled and surplus remains,
+ *    it is deposited into the user's primary/target bank account (or recorded as a credit advance if no account chosen).
+ * 4. Referential Integrity: Stamps `repayments[].txId` directly on each updated receivable pointing to its specific ledger transaction.
+ * 5. Over-repayment Protection: Caps principal debt reduction strictly at `outstandingAmount` (>= 0).
  */
 export function reconcileDebtorPaymentOrOffset(
   params: DebtorReconciliationParams
@@ -437,9 +439,10 @@ export function reconcileDebtorPaymentOrOffset(
   }
 
   const workingHoldings = holdings.map((h) => ({ ...h }));
+  // Primary liquid account fallback (for cash deposit or residual surplus deposit)
   const targetHolding = depositAccountId
     ? workingHoldings.find((h) => h.id === depositAccountId)
-    : undefined;
+    : workingHoldings.find((h) => h.liquidityClass === 'Immediate' || h.typeId === 'type-bank');
 
   if (depositAccountId && mode === 'cash_deposit' && !targetHolding) {
     return {
@@ -477,26 +480,19 @@ export function reconcileDebtorPaymentOrOffset(
     ...otherActiveLent,
   ];
 
-  // Generate unique main ledger Transaction ID up front so `repayments[].txId` references it directly
-  const txId = `tx-rec-reconcile-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-  const isCashDeposit = Boolean(targetHolding) && mode === 'cash_deposit';
-  const txKind: Transaction['kind'] = isCashDeposit ? 'income' : 'adjustment';
-
-  if (isCashDeposit && targetHolding) {
-    targetHolding.principalOrValue = roundCurrency(
-      safeAdd(targetHolding.principalOrValue || 0, cleanAmount)
-    );
-  }
-
   const workingRecs = receivables.map((r) => ({
     ...r,
     repayments: [...(r.repayments || [])],
   }));
 
+  const createdTransactions: Transaction[] = [];
   let remainingToApply = cleanAmount;
   let principalReducedTotal = 0;
   const settledReceivableIds: string[] = [];
-  const touchedRepaymentRefs: { recId: string; repaymentId: string }[] = [];
+  const touchedRepaymentRefs: { recId: string; repaymentId: string; txId: string }[] = [];
+
+  const isCashDeposit = Boolean(targetHolding) && mode === 'cash_deposit';
+  let loanIndex = 0;
 
   for (const target of orderedTargets) {
     if (remainingToApply <= 0.005) break;
@@ -508,24 +504,61 @@ export function reconcileDebtorPaymentOrOffset(
     const maxReducible = roundCurrency(safeAdd(currentRec.outstandingAmount || 0, accrued));
     if (maxReducible <= 0) continue;
 
+    loanIndex++;
     // Strictly cap principal reduction at maxReducible so outstandingAmount NEVER drops below 0
     const appliedSlice = roundCurrency(Math.min(maxReducible, remainingToApply));
     const nextOutstanding = roundCurrency(Math.max(0, safeSub(maxReducible, appliedSlice)));
     const isSettled = nextOutstanding <= 0.01;
+    const sliceTxId = `tx-rec-${currentRec.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const repaymentId = `rep-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+    // Create a dedicated ledger entry for this specific loan paydown slice
+    const sliceTx: Transaction = {
+      id: sliceTxId,
+      date: payDate,
+      createdAt: new Date().toISOString(),
+      kind: isCashDeposit ? 'income' : 'adjustment',
+      amount: appliedSlice,
+      currency,
+      toId: isCashDeposit
+        ? (depositAccountId || targetHolding?.id)
+        : (depositAccountId || linkedBillId || currentRec.id),
+      linkedReceivableId: currentRec.id,
+      reason:
+        mode === 'expense_offset' || expenseDescription
+          ? `Debt Offset (${resolvedDebtorName}): Loan ${loanIndex} [${currentRec.notes || `Bal: ${currentRec.outstandingAmount}`}]`
+          : `Loan Repayment (${resolvedDebtorName}): Loan ${loanIndex} [${currentRec.notes || `Bal: ${currentRec.outstandingAmount}`}]`,
+      category: 'Receivables & Loans',
+      tags: [
+        isCashDeposit ? 'Loan Repayment' : 'Debt Offset',
+        isSettled ? 'Debt Settled' : 'Partial Repayment',
+      ],
+      fxRateUsed: 1.0,
+      reconciled: true,
+      notes:
+        notes ||
+        `Applied ${appliedSlice} ${currency} to ${resolvedDebtorName} loan (${currentRec.notes || currentRec.id}). Remaining on loan: ${nextOutstanding} ${currency}.`,
+      provenance: createProvenance(
+        'user_entered',
+        isCashDeposit
+          ? 'Debtor repayment deposited into holding'
+          : 'Bi-directional debtor expense offset'
+      ),
+    };
+    createdTransactions.push(sliceTx);
 
     const newRepayment: ReceivableRepayment = {
       id: repaymentId,
       date: payDate,
       amount: appliedSlice,
-      depositAccountId: isCashDeposit ? depositAccountId : linkedBillId || undefined,
-      txId,
+      depositAccountId: isCashDeposit ? (depositAccountId || targetHolding?.id) : linkedBillId || undefined,
+      txId: sliceTxId,
       isExpenseOffset: mode === 'expense_offset' || !isCashDeposit,
       notes:
         notes ||
         (expenseDescription
-          ? `${resolvedDebtorName} paid ${expenseDescription} (debt offset)`
-          : `Principal reconciliation from ${resolvedDebtorName}`),
+          ? `${resolvedDebtorName} paid ${expenseDescription} (applied to loan)`
+          : `Principal repayment slice from ${resolvedDebtorName}`),
     };
 
     workingRecs[recIdx] = {
@@ -543,17 +576,59 @@ export function reconcileDebtorPaymentOrOffset(
     if (isSettled) {
       settledReceivableIds.push(currentRec.id);
     }
-    touchedRepaymentRefs.push({ recId: currentRec.id, repaymentId });
+    touchedRepaymentRefs.push({ recId: currentRec.id, repaymentId, txId: sliceTxId });
     principalReducedTotal = safeAdd(principalReducedTotal, appliedSlice);
     remainingToApply = roundCurrency(safeSub(remainingToApply, appliedSlice));
   }
 
-  // Over-repayment Protection: Any excess above total owed is recorded as a Credit Advance ('borrowed')
+  // Credit the applied principal slices to target holding if cash deposit
+  if (isCashDeposit && targetHolding && principalReducedTotal > 0) {
+    targetHolding.principalOrValue = roundCurrency(
+      safeAdd(targetHolding.principalOrValue || 0, principalReducedTotal)
+    );
+  }
+
+  // Handle Residual Extra Amount (when payment exceeds all active debts for this person)
   let excessCreditAdvance: Receivable | undefined;
   const excessAdvanceAmount = remainingToApply > 0.01 ? roundCurrency(remainingToApply) : 0;
 
   if (excessAdvanceAmount > 0) {
+    const surplusTxId = `tx-rec-surplus-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const advanceId = `rec-advance-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+    // If an account is available (deposit account or user primary bank account), deposit surplus there
+    if (targetHolding) {
+      targetHolding.principalOrValue = roundCurrency(
+        safeAdd(targetHolding.principalOrValue || 0, excessAdvanceAmount)
+      );
+    }
+
+    // Log the extra money separately in the ledger so user has a 100% transparent record of where the extra went
+    const surplusTx: Transaction = {
+      id: surplusTxId,
+      date: payDate,
+      createdAt: new Date().toISOString(),
+      kind: 'income',
+      amount: excessAdvanceAmount,
+      currency,
+      toId: targetHolding?.id,
+      linkedReceivableId: advanceId,
+      reason: `Extra Money from ${resolvedDebtorName}: Credited to ${targetHolding?.name || 'Primary Account'} (All debts settled)`,
+      category: 'Receivables & Loans',
+      tags: ['Extra Inflow', 'Surplus Credited', 'Credit Advance'],
+      fxRateUsed: 1.0,
+      reconciled: true,
+      notes:
+        notes ||
+        `All loans settled. Extra ${excessAdvanceAmount} ${currency} received from ${resolvedDebtorName} and added to ${targetHolding?.name || 'user account'}.`,
+      provenance: createProvenance(
+        'user_entered',
+        'Surplus over-repayment credited to user primary bank account'
+      ),
+    };
+    createdTransactions.push(surplusTx);
+
+    // Over-repayment Protection: Record residual as Credit Advance ('borrowed') so balance calculation remains 100% accurate
     excessCreditAdvance = {
       id: advanceId,
       debtorName: resolvedDebtorName,
@@ -565,13 +640,13 @@ export function reconcileDebtorPaymentOrOffset(
       confidencePct: 100,
       direction: 'borrowed',
       isCreditAdvance: true,
-      sourceOverpaymentTxId: txId,
+      sourceOverpaymentTxId: surplusTxId,
       linkedBillId,
       status: 'active',
       isArchived: false,
       notes:
         notes ||
-        `Credit advance from ${resolvedDebtorName} (excess payment of ${excessAdvanceAmount} beyond receivable principal)`,
+        `Credit advance from ${resolvedDebtorName} (extra ${excessAdvanceAmount} ${currency} received after settling all debts; deposited to ${targetHolding?.name || 'account'})`,
       repayments: [],
       provenance: createProvenance(
         'user_entered',
@@ -597,54 +672,19 @@ export function reconcileDebtorPaymentOrOffset(
     }
   }
 
-  const primaryLinkedId =
-    primaryRec?.id || orderedTargets[0]?.id || excessCreditAdvance?.id;
-
-  const newLedgerTransaction: Transaction = {
-    id: txId,
-    date: payDate,
-    createdAt: new Date().toISOString(),
-    kind: txKind,
-    amount: cleanAmount,
-    currency,
-    toId: isCashDeposit
-      ? depositAccountId
-      : depositAccountId || linkedBillId || primaryLinkedId,
-    linkedReceivableId: primaryLinkedId,
-    reason:
-      mode === 'expense_offset' || expenseDescription
-        ? `Debt Offset (${resolvedDebtorName}): ${expenseDescription || 'Expense Paid on Behalf'}`
-        : `Repayment from ${resolvedDebtorName}`,
-    category: 'Receivables & Loans',
-    tags: [
-      isCashDeposit ? 'Loan Repayment' : 'Debt Offset',
-      ...(excessAdvanceAmount > 0 ? ['Credit Advance'] : []),
-    ],
-    fxRateUsed: 1.0,
-    reconciled: true,
-    notes:
-      notes ||
-      `Principal reduced: ${principalReducedTotal}${
-        excessAdvanceAmount > 0 ? `, Credit advance logged: ${excessAdvanceAmount}` : ''
-      }`,
-    provenance: createProvenance(
-      'user_entered',
-      isCashDeposit
-        ? 'Debtor repayment deposited into holding'
-        : 'Bi-directional debtor expense offset'
-    ),
-  };
+  // Fallback single transaction reference for backward compatibility
+  const primaryTx = createdTransactions[0];
 
   return {
     success: true,
     updatedReceivables: workingRecs,
     updatedHoldings: workingHoldings,
-    updatedTransactions: [newLedgerTransaction, ...transactions],
-    newLedgerTransaction,
+    updatedTransactions: [...createdTransactions, ...transactions],
+    newLedgerTransaction: primaryTx,
+    newLedgerTransactions: createdTransactions,
     excessCreditAdvance,
     principalReducedTotal,
     excessAdvanceAmount,
     settledReceivableIds,
   };
 }
-

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Receivable } from '../../types';
 import { formatMoney } from '../../lib/formatters';
-import { X, CheckCircle2, Landmark, AlertCircle, Handshake } from 'lucide-react';
+import { X, CheckCircle2, Landmark, AlertCircle, Handshake, Layers, Sparkles } from 'lucide-react';
 
 interface RecordRepaymentModalProps {
   receivable: Receivable;
@@ -13,7 +13,7 @@ export const RecordRepaymentModal: React.FC<RecordRepaymentModalProps> = ({
   receivable,
   onClose,
 }) => {
-  const { recordReceivableRepayment, holdings, currencies, settings } = useApp();
+  const { recordReceivableRepayment, holdings, receivables, currencies, settings } = useApp();
 
   const [mode, setMode] = useState<'cash_deposit' | 'expense_offset'>('cash_deposit');
   const [amount, setAmount] = useState<number | ''>(receivable.outstandingAmount);
@@ -29,10 +29,68 @@ export const RecordRepaymentModal: React.FC<RecordRepaymentModalProps> = ({
   const bankAccounts = holdings.filter((h) => h.liquidityClass === 'Immediate');
   const currSym = currencies.find((c) => c.code === receivable.currency)?.symbol || '₹';
 
+  // Find all active lent loans for this person
+  const debtorActiveLoans = useMemo(() => {
+    const normName = receivable.debtorName.trim().toLowerCase();
+    const otherActive = receivables.filter(
+      (r) =>
+        r.id !== receivable.id &&
+        !r.isArchived &&
+        (r.direction || 'lent') === 'lent' &&
+        r.debtorName.trim().toLowerCase() === normName &&
+        (r.outstandingAmount || 0) > 0.005
+    );
+    return [receivable, ...otherActive];
+  }, [receivables, receivable]);
+
   const numericAmt = Number(amount) || 0;
-  const cappedPrincipalReduction = Math.min(receivable.outstandingAmount, Math.max(0, numericAmt));
-  const excessCreditAdvance = Math.max(0, numericAmt - receivable.outstandingAmount);
-  const projectedRemaining = Math.max(0, receivable.outstandingAmount - cappedPrincipalReduction);
+
+  // Simulate cascading loan paydown across debtor's obligations
+  const cascadeSimulation = useMemo(() => {
+    let unallocated = numericAmt;
+    const slices: {
+      loanId: string;
+      label: string;
+      currentBalance: number;
+      appliedSlice: number;
+      nextBalance: number;
+      isSettled: boolean;
+    }[] = [];
+
+    for (let i = 0; i < debtorActiveLoans.length; i++) {
+      const loan = debtorActiveLoans[i];
+      const bal = loan.outstandingAmount || 0;
+      const applied = Math.min(bal, unallocated);
+      const remaining = Math.max(0, bal - applied);
+      slices.push({
+        loanId: loan.id,
+        label: i === 0 ? `Target Loan (${loan.notes || 'Primary'})` : `Next Loan ${i + 1} (${loan.notes || loan.id.slice(-4)})`,
+        currentBalance: bal,
+        appliedSlice: applied,
+        nextBalance: remaining,
+        isSettled: remaining <= 0.005,
+      });
+      unallocated = Math.max(0, unallocated - applied);
+    }
+
+    const totalDebtorBalance = debtorActiveLoans.reduce((sum, l) => sum + (l.outstandingAmount || 0), 0);
+    const totalReduced = Math.min(totalDebtorBalance, numericAmt);
+    const totalRemaining = Math.max(0, totalDebtorBalance - totalReduced);
+    const excessSurplus = Math.max(0, numericAmt - totalDebtorBalance);
+    const allDebtsSettled = totalRemaining <= 0.005;
+
+    return {
+      slices,
+      totalDebtorBalance,
+      totalReduced,
+      totalRemaining,
+      excessSurplus,
+      allDebtsSettled,
+    };
+  }, [debtorActiveLoans, numericAmt]);
+
+  const selectedHolding = holdings.find((h) => h.id === depositAccountId) || holdings.find((h) => h.liquidityClass === 'Immediate');
+
 
   const handleRepay = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,16 +188,31 @@ export const RecordRepaymentModal: React.FC<RecordRepaymentModalProps> = ({
             </button>
           </div>
 
-          <div className="p-2.5 rounded-lg bg-slate-800/40 border border-slate-800 flex justify-between items-center">
-            <span className="text-slate-400">Current Receivable Balance:</span>
-            <span className="font-bold font-mono tabular-nums text-slate-200">
-              {formatMoney(
-                receivable.outstandingAmount,
-                receivable.currency,
-                currSym,
-                settings.numberGrouping
-              )}
-            </span>
+          <div className="p-2.5 rounded-lg bg-slate-800/40 border border-slate-800 space-y-1">
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-slate-400">Target Loan Balance:</span>
+              <span className="font-bold font-mono tabular-nums text-slate-200">
+                {formatMoney(
+                  receivable.outstandingAmount,
+                  receivable.currency,
+                  currSym,
+                  settings.numberGrouping
+                )}
+              </span>
+            </div>
+            {debtorActiveLoans.length > 1 && (
+              <div className="flex justify-between items-center text-[11px] text-slate-400 border-t border-slate-750 pt-1">
+                <span>Total Owed Across All {debtorActiveLoans.length} Loans:</span>
+                <span className="font-semibold font-mono tabular-nums text-emerald-400">
+                  {formatMoney(
+                    cascadeSimulation.totalDebtorBalance,
+                    receivable.currency,
+                    currSym,
+                    settings.numberGrouping
+                  )}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Repayment / Offset Amount */}
@@ -196,21 +269,71 @@ export const RecordRepaymentModal: React.FC<RecordRepaymentModalProps> = ({
             </div>
           )}
 
-          {/* Reconciliation Preview */}
+          {/* Cascading Reconciliation & Settlement Preview */}
           {numericAmt > 0 && (
-            <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-300 space-y-1">
-              <div className="flex justify-between">
-                <span className="text-slate-400">New Receivable Principal:</span>
-                <span className="font-mono tabular-nums font-semibold text-emerald-400">
-                  {formatMoney(projectedRemaining, receivable.currency, currSym, settings.numberGrouping)}
+            <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-300 space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-200 pb-1 border-b border-slate-850">
+                <div className="flex items-center gap-1.5 text-emerald-400">
+                  <Layers size={13} />
+                  <span>Cascading Paydown Breakdown</span>
+                </div>
+                <span className="font-mono tabular-nums text-slate-400">
+                  Total: {formatMoney(numericAmt, receivable.currency, currSym, settings.numberGrouping)}
                 </span>
               </div>
-              {excessCreditAdvance > 0.01 && (
-                <div className="flex justify-between text-amber-300">
-                  <span>Over-repayment Credit Advance (You owe {receivable.debtorName}):</span>
-                  <span className="font-mono tabular-nums font-semibold">
-                    {formatMoney(excessCreditAdvance, receivable.currency, currSym, settings.numberGrouping)}
+
+              {/* Slices */}
+              <div className="space-y-1 font-mono text-[11px]">
+                {cascadeSimulation.slices.map((slice) => (
+                  <div key={slice.loanId} className="flex justify-between items-center text-slate-300">
+                    <span className="font-sans text-slate-400 truncate max-w-[200px]">
+                      {slice.label}:
+                    </span>
+                    <span className="tabular-nums">
+                      {slice.appliedSlice > 0 ? (
+                        <>
+                          <span className="text-emerald-400">
+                            -{formatMoney(slice.appliedSlice, receivable.currency, currSym, settings.numberGrouping)}
+                          </span>
+                          {' → '}
+                          <span className={slice.isSettled ? 'text-slate-400' : 'text-slate-200'}>
+                            {slice.isSettled ? 'Settled (0)' : formatMoney(slice.nextBalance, receivable.currency, currSym, settings.numberGrouping)}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-slate-500">Untouched ({formatMoney(slice.currentBalance, receivable.currency, currSym, settings.numberGrouping)})</span>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Counterparty Net Remaining Status */}
+              <div className="pt-1.5 border-t border-slate-850 flex justify-between items-center">
+                <span className="font-medium text-slate-300">Debtor Settlement Status:</span>
+                {cascadeSimulation.allDebtsSettled ? (
+                  <span className="font-semibold text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 size={12} />
+                    <span>All Debts Settled (Owes ₹0)</span>
                   </span>
+                ) : (
+                  <span className="font-semibold font-mono tabular-nums text-amber-300">
+                    Still owes {formatMoney(cascadeSimulation.totalRemaining, receivable.currency, currSym, settings.numberGrouping)}
+                  </span>
+                )}
+              </div>
+
+              {/* Surplus Money Deposited to Bank */}
+              {cascadeSimulation.excessSurplus > 0.005 && (
+                <div className="p-2 rounded-md bg-emerald-950/40 border border-emerald-800/50 text-emerald-300 text-[11px] space-y-0.5">
+                  <div className="font-semibold flex items-center gap-1">
+                    <Sparkles size={12} />
+                    <span>Residual Extra Money: +{formatMoney(cascadeSimulation.excessSurplus, receivable.currency, currSym, settings.numberGrouping)}</span>
+                  </div>
+                  <p className="text-[10px] text-emerald-400/90 leading-tight">
+                    All debts are cleared. Extra funds will be deposited directly to{' '}
+                    <strong className="text-white">{selectedHolding?.name || 'Primary Bank Account'}</strong> and logged as a distinct ledger transaction.
+                  </p>
                 </div>
               )}
             </div>

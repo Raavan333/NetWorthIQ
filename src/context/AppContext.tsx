@@ -4700,11 +4700,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return { success: false, error: 'Selected bill commitment was not found.' };
       }
 
+      const billCost = b.amount || 0;
+      const appliedToBill = Math.min(billCost, amount);
+      const excessAfterBill = safeSub(amount, appliedToBill);
+
       // If it's a debt/loan liability bill, also reduce the actual liability balance!
       if (b.isAutoLiabilityBill && b.liabilityId) {
         const liveLiability = liabilitiesRef.current.find((l) => l.id === b.liabilityId);
         if (liveLiability) {
-          const newOutstanding = Math.max(0, safeSub(liveLiability.outstanding || 0, amount));
+          const newOutstanding = Math.max(0, safeSub(liveLiability.outstanding || 0, appliedToBill));
           await updateLiability({
             ...liveLiability,
             outstanding: newOutstanding,
@@ -4721,13 +4725,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       }
 
-      // Record transaction ledger entry without debiting user bank accounts
+      // Record transaction ledger entry for the settled bill slice
       const tx: Transaction = {
         id: txId,
         date: txDate,
         createdAt: new Date().toISOString(),
         kind: 'income',
-        amount,
+        amount: appliedToBill,
         currency,
         toId: b.id,
         reason: `External Settlement: Bill "${b.name}" paid by ${sourceName}`,
@@ -4742,7 +4746,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (b.isGoalContributionBill && b.goalId) {
         const goal = goals.find((g) => g.id === b.goalId);
         if (goal) {
-          const newAccum = safeAdd(goal.accumulatedTotal || 0, amount);
+          const newAccum = safeAdd(goal.accumulatedTotal || 0, appliedToBill);
           await updateGoal({
             ...goal,
             accumulatedTotal: newAccum,
@@ -4751,7 +4755,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      const summary = `Bill "${b.name}" of ${amount.toLocaleString()} ${currency} marked settled directly by ${sourceName} without debiting your accounts.`;
+      // If excess was paid beyond the bill amount, deposit the remainder into primary bank account
+      if (excessAfterBill > 0.005) {
+        const primaryHolding = holdingsRef.current.find(
+          (h) => h.liquidityClass === 'Immediate' || h.typeId === 'type-bank'
+        );
+        if (primaryHolding) {
+          const newBal = safeAdd(primaryHolding.principalOrValue || 0, excessAfterBill);
+          await updateHolding({
+            ...primaryHolding,
+            principalOrValue: newBal,
+          });
+        }
+
+        const surplusTx: Transaction = {
+          id: `tx-inflow-surplus-${Date.now()}`,
+          date: txDate,
+          createdAt: new Date().toISOString(),
+          kind: 'income',
+          amount: excessAfterBill,
+          currency,
+          toId: primaryHolding?.id,
+          reason: `Excess Funds from ${sourceName} (Bill "${b.name}" settled): Deposited to ${primaryHolding?.name || 'Primary Account'}`,
+          category: 'External Inflow',
+          tags: ['Surplus Credited', 'Bill Settled Extra', category],
+          fxRateUsed: fxRate,
+          notes: `Bill "${b.name}" was fully cleared with ${appliedToBill} ${currency}. Remaining extra ${excessAfterBill} ${currency} credited to ${primaryHolding?.name || 'primary bank account'}.`,
+        };
+        await recordTransactionOnly(surplusTx);
+      }
+
+      const summary = excessAfterBill > 0.005
+        ? `Bill "${b.name}" of ${appliedToBill.toLocaleString()} ${currency} cleared by ${sourceName}. Extra ${excessAfterBill.toLocaleString()} ${currency} added to your account.`
+        : `Bill "${b.name}" of ${amount.toLocaleString()} ${currency} marked settled directly by ${sourceName} without debiting your accounts.`;
       return { success: true, txId, summary };
     }
 
@@ -4760,62 +4796,116 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!targetLiabilityId) {
         return { success: false, error: 'Please select a loan or card liability to pay down.' };
       }
-      const liability = liabilitiesRef.current.find((l) => l.id === targetLiabilityId);
-      if (!liability) {
+      const primaryLiability = liabilitiesRef.current.find((l) => l.id === targetLiabilityId);
+      if (!primaryLiability) {
         return { success: false, error: 'Selected liability not found.' };
       }
 
-      const newOutstanding = Math.max(0, safeSub(liability.outstanding || 0, amount));
+      // Order liabilities: targeted first, then any other active debts with outstanding balances
+      const otherDebts = liabilitiesRef.current
+        .filter((l) => l.id !== targetLiabilityId && (l.outstanding || 0) > 0)
+        .sort((a, b) => (b.ratePct || 0) - (a.ratePct || 0));
 
-      let updatedStatements = liability.statements;
-      if (liability.kind === 'card' && updatedStatements && updatedStatements.length > 0) {
-        updatedStatements = updatedStatements.map((s, idx) => {
-          if (idx === 0) {
-            return {
-              ...s,
-              paidAmount: Math.min(s.amount, safeAdd(s.paidAmount || 0, amount)),
-              actualPaidInLedger: safeAdd(s.actualPaidInLedger || 0, amount),
-            };
-          }
-          return s;
+      const debtTargets = [primaryLiability, ...otherDebts];
+      let remainingMoney = amount;
+      let totalReduced = 0;
+      let loanIdx = 0;
+
+      for (const currentLiab of debtTargets) {
+        if (remainingMoney <= 0.005) break;
+        const currentBal = currentLiab.outstanding || 0;
+        if (currentBal <= 0) continue;
+
+        loanIdx++;
+        const paySlice = Math.min(currentBal, remainingMoney);
+        const newBal = Math.max(0, safeSub(currentBal, paySlice));
+
+        let updatedStatements = currentLiab.statements;
+        if (currentLiab.kind === 'card' && updatedStatements && updatedStatements.length > 0) {
+          updatedStatements = updatedStatements.map((s, idx) => {
+            if (idx === 0) {
+              return {
+                ...s,
+                paidAmount: Math.min(s.amount, safeAdd(s.paidAmount || 0, paySlice)),
+                actualPaidInLedger: safeAdd(s.actualPaidInLedger || 0, paySlice),
+              };
+            }
+            return s;
+          });
+        }
+
+        await updateLiability({
+          ...currentLiab,
+          outstanding: newBal,
+          statements: updatedStatements,
         });
+
+        const sliceTxId = `tx-debtpay-${currentLiab.id}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
+        const sliceTx: Transaction = {
+          id: sliceTxId,
+          date: txDate,
+          createdAt: new Date().toISOString(),
+          kind: currentLiab.kind === 'card' ? 'cardPayment' : 'emi',
+          amount: paySlice,
+          currency: currentLiab.currency,
+          toId: currentLiab.id,
+          reason: `Direct Debt Payoff: ${currentLiab.name} (Loan ${loanIdx}) paid by ${sourceName}`,
+          category: 'Debt Payoff',
+          tags: ['External Payoff', 'Direct Debt Relief', category],
+          fxRateUsed: fxRate,
+          notes: notes || `Direct liability reduction: ${sourceName} paid ${paySlice} ${currentLiab.currency} toward ${currentLiab.name}. Remaining debt on this loan: ${newBal}.`,
+        };
+        await recordTransactionOnly(sliceTx);
+
+        totalReduced = safeAdd(totalReduced, paySlice);
+        remainingMoney = safeSub(remainingMoney, paySlice);
       }
 
-      await updateLiability({
-        ...liability,
-        outstanding: newOutstanding,
-        statements: updatedStatements,
-      });
+      // If all active debts are settled and excess funds remain, deposit surplus into primary bank account!
+      if (remainingMoney > 0.005) {
+        const primaryHolding = holdingsRef.current.find(
+          (h) => h.liquidityClass === 'Immediate' || h.typeId === 'type-bank'
+        );
+        if (primaryHolding) {
+          const newBal = safeAdd(primaryHolding.principalOrValue || 0, remainingMoney);
+          await updateHolding({
+            ...primaryHolding,
+            principalOrValue: newBal,
+          });
+        }
 
-      const tx: Transaction = {
-        id: txId,
-        date: txDate,
-        createdAt: new Date().toISOString(),
-        kind: liability.kind === 'card' ? 'cardPayment' : 'emi',
-        amount,
-        currency: liability.currency,
-        toId: liability.id,
-        reason: `Direct Debt Payoff: ${liability.name} paid by ${sourceName}`,
-        category: 'Debt Payoff',
-        tags: ['External Payoff', 'Direct Debt Relief', category],
-        fxRateUsed: fxRate,
-        notes: notes || `Direct liability reduction: ${sourceName} paid ${amount} ${liability.currency} toward ${liability.name}. User liquid accounts were not debited.`,
-      };
-      await recordTransactionOnly(tx);
+        const surplusTx: Transaction = {
+          id: `tx-debt-surplus-${Date.now()}`,
+          date: txDate,
+          createdAt: new Date().toISOString(),
+          kind: 'income',
+          amount: remainingMoney,
+          currency,
+          toId: primaryHolding?.id,
+          reason: `Extra Funds from ${sourceName} (All Debts Cleared): Credited to ${primaryHolding?.name || 'Primary Bank Account'}`,
+          category: 'External Inflow',
+          tags: ['Surplus Credited', 'All Loans Settled', category],
+          fxRateUsed: fxRate,
+          notes: `Debts fully paid down with ${totalReduced} ${currency}. Remaining ${remainingMoney} ${currency} received from ${sourceName} deposited to ${primaryHolding?.name || 'primary bank account'}.`,
+        };
+        await recordTransactionOnly(surplusTx);
+      }
 
       if (earmarkedGoalId) {
         const goal = goals.find((g) => g.id === earmarkedGoalId);
         if (goal) {
-          const newAccum = safeAdd(goal.accumulatedTotal || 0, amount);
+          const newAccum = safeAdd(goal.accumulatedTotal || 0, totalReduced);
           await updateGoal({
             ...goal,
             accumulatedTotal: newAccum,
-            isCompleted: newOutstanding <= 0 || newAccum >= goal.cost,
+            isCompleted: newAccum >= goal.cost,
           });
         }
       }
 
-      const summary = `Paid down ${amount.toLocaleString()} ${liability.currency} on "${liability.name}" directly by ${sourceName}. Remaining debt: ${newOutstanding.toLocaleString()} ${liability.currency}.`;
+      const summary = remainingMoney > 0.005
+        ? `Paid down ${totalReduced.toLocaleString()} ${currency} across debts directly by ${sourceName}. All debts settled! Extra ${remainingMoney.toLocaleString()} ${currency} credited to your account.`
+        : `Paid down ${totalReduced.toLocaleString()} ${currency} on debts directly by ${sourceName}.`;
       return { success: true, txId, summary };
     }
 

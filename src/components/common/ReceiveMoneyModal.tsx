@@ -107,6 +107,17 @@ export const ReceiveMoneyModal: React.FC<ReceiveMoneyModalProps> = ({
     return goals.filter((g) => !g.isCompleted);
   }, [goals]);
 
+  const primaryBank = useMemo(() => {
+    return (
+      eligibleAccounts.find((a) => a.liquidityClass === 'Immediate' || a.typeId === 'type-bank') ||
+      eligibleAccounts[0]
+    );
+  }, [eligibleAccounts]);
+
+  const selectedBill = useMemo(() => bills.find((b) => b.id === targetBillId), [bills, targetBillId]);
+  const selectedDebt = useMemo(() => activeDebts.find((l) => l.id === targetLiabilityId), [activeDebts, targetLiabilityId]);
+  const totalActiveDebt = useMemo(() => activeDebts.reduce((sum, d) => sum + (d.outstanding || 0), 0), [activeDebts]);
+
   // Sync initial state when modal opens
   useEffect(() => {
     if (!isOpen) return;
@@ -575,7 +586,7 @@ export const ReceiveMoneyModal: React.FC<ReceiveMoneyModalProps> = ({
 
         {/* Live Accounting Impact Preview */}
         {parsedAmount > 0 && (
-          <div className="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-800/40 space-y-1.5">
+          <div className="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-800/40 space-y-2">
             <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
               <Sparkles size={14} />
               <span>Real Financial Impact</span>
@@ -598,6 +609,44 @@ export const ReceiveMoneyModal: React.FC<ReceiveMoneyModalProps> = ({
                 <span className="font-bold text-emerald-400">Audited Inflow</span>
               </div>
             </div>
+
+            {/* Direct Bill Overpayment Breakdown */}
+            {destinationType === 'direct_bill' && selectedBill && parsedAmount > (selectedBill.amount || 0) && (
+              <div className="pt-2 border-t border-emerald-900/40 text-[11px] text-emerald-300 space-y-0.5">
+                <span className="font-semibold block">Bill Cleared &amp; Residual Money Deposited:</span>
+                <p className="text-slate-300 text-[10px] leading-tight">
+                  {formatMoney(selectedBill.amount, currency)} clears &quot;{selectedBill.name}&quot; in full. The remaining extra{' '}
+                  <strong className="text-emerald-300 font-mono font-bold">
+                    +{formatMoney(parsedAmount - selectedBill.amount, currency)}
+                  </strong>{' '}
+                  will be deposited into <strong className="text-white">{primaryBank?.name || 'Primary Bank Account'}</strong> and logged separately in the ledger.
+                </p>
+              </div>
+            )}
+
+            {/* Direct Debt Payoff & Cascading Breakdown */}
+            {destinationType === 'direct_liability' && selectedDebt && parsedAmount > (selectedDebt.outstanding || 0) && (
+              <div className="pt-2 border-t border-cyan-900/40 text-[11px] text-cyan-300 space-y-0.5">
+                <span className="font-semibold block">Debt Cascading &amp; Allocation:</span>
+                {parsedAmount <= totalActiveDebt ? (
+                  <p className="text-slate-300 text-[10px] leading-tight">
+                    {formatMoney(selectedDebt.outstanding || 0, currency)} clears &quot;{selectedDebt.name}&quot; in full. The remaining{' '}
+                    <strong className="text-cyan-300 font-mono font-bold">
+                      {formatMoney(parsedAmount - (selectedDebt.outstanding || 0), currency)}
+                    </strong>{' '}
+                    cascades to pay down your next loan with distinct ledger transaction records.
+                  </p>
+                ) : (
+                  <p className="text-slate-300 text-[10px] leading-tight">
+                    All active loans and cards cleared in full ({formatMoney(totalActiveDebt, currency)}). The residual extra{' '}
+                    <strong className="text-emerald-300 font-mono font-bold">
+                      +{formatMoney(parsedAmount - totalActiveDebt, currency)}
+                    </strong>{' '}
+                    will be deposited into <strong className="text-white">{primaryBank?.name || 'Primary Bank Account'}</strong> and logged as a distinct surplus transaction.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
 
