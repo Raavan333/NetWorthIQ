@@ -1,0 +1,1471 @@
+You are acting as a principal software architect, senior Python engineer,
+financial systems engineer, database architect, ML engineer and application
+security engineer.
+
+Your task is to upgrade the existing NetWorthIQ application into a
+production-grade personal financial intelligence platform.
+
+This is an enhancement to an existing application, NOT a request to build
+an unrelated application from scratch.
+
+Your responsibility is to understand the existing application, preserve
+working functionality, identify architectural weaknesses and implement all
+requirements specified below.
+
+The application must be reliable enough to handle real financial data.
+Financial calculations must be accurate, explainable, auditable and
+deterministic.
+
+============================================================
+PART 1 — NON-NEGOTIABLE DEVELOPMENT RULES
+============================================================
+
+1. INSPECT BEFORE IMPLEMENTING
+
+Before changing anything:
+
+- Inspect the complete existing repository.
+- Understand the current architecture.
+- Identify the frontend and backend technologies.
+- Inspect the database schema and existing migrations.
+- Inspect financial calculations and transaction flows.
+- Inspect existing ML models, prediction logic and feature engineering.
+- Identify how assets, liabilities, accounts, cards, loans and transactions
+  currently interact.
+- Identify existing authentication, authorisation and encryption mechanisms.
+- Identify existing tests and deployment configuration.
+
+Do not assume that the existing architecture works correctly.
+
+Do not replace working components unnecessarily.
+
+2. DO NOT MAKE ASSUMPTIONS
+
+If a requirement cannot be implemented correctly because information is
+missing, STOP and ask for clarification.
+
+Examples:
+
+- Do not invent loan prepayment charges.
+- Do not invent foreclosure rules.
+- Do not invent credit utilisation thresholds.
+- Do not invent interest calculation conventions.
+- Do not invent EMI conversion fees.
+- Do not invent financial prediction thresholds.
+- Do not invent account balance restoration rules when the existing
+  transaction model is ambiguous.
+
+First inspect whether the required information already exists in the
+application.
+
+If it exists, reuse it.
+
+If it does not exist, determine whether the feature can support an explicit
+user-configurable setting.
+
+If neither is possible without making a financial assumption, ask me.
+
+Never silently introduce arbitrary financial rules.
+
+3. PRODUCTION-GRADE IMPLEMENTATION
+
+All changes must include:
+
+- Proper input validation.
+- Database integrity.
+- Transactional consistency.
+- Error handling.
+- Audit logging.
+- Security controls.
+- Unit tests.
+- Integration tests.
+- Regression tests.
+- Appropriate database indexes.
+- Efficient queries.
+- Proper documentation.
+
+Do not create a monolithic implementation.
+
+Use separate modules for separate responsibilities.
+
+4. PRESERVE EXISTING DATA
+
+Never delete or overwrite existing financial records during migrations.
+
+Database migrations must be reversible wherever practical.
+
+Before performing destructive or potentially irreversible operations,
+request explicit approval.
+
+5. FINANCIAL SAFETY
+
+Never allow an ML model to directly modify:
+
+- Account balances.
+- Loan balances.
+- Credit-card balances.
+- Transactions.
+- Payment schedules.
+- Financial commitments.
+
+ML can analyse, predict, explain and recommend.
+
+Actual financial state changes must happen through validated,
+deterministic application services.
+
+No recommendation should automatically execute a financial transaction.
+
+============================================================
+PART 2 — UNIFIED FINANCIAL SIMULATION ENGINE
+============================================================
+
+Create or upgrade a central financial simulation engine.
+
+This must become the foundation for:
+
+- Debt repayment recommendations.
+- Loan prepayment optimisation.
+- Credit-card utilisation management.
+- Monthly cash-flow forecasting.
+- Financial what-if simulations.
+- Emergency-fund protection.
+- Debt restructuring comparisons.
+- Net-worth projections.
+- Financial decision recommendations.
+
+The engine must understand the relationships between:
+
+1. Bank accounts.
+2. Cash accounts.
+3. Investments.
+4. Fixed deposits.
+5. Restricted assets.
+6. Credit cards.
+7. Personal loans.
+8. Other loans.
+9. Receivables.
+10. Monthly income.
+11. Recurring expenses.
+12. Scheduled transfers.
+13. EMI obligations.
+14. Financial goals.
+15. Emergency reserves.
+
+A financial decision must be evaluated against the complete financial
+position rather than a single metric.
+
+Example:
+
+A user has:
+
+- ₹50,000 available in a bank account.
+- ₹20,000 credit-card outstanding.
+- ₹15,000 personal-loan outstanding.
+- ₹20,000 configured emergency reserve.
+
+The application must not recommend using the entire ₹50,000 to repay debt.
+
+It must first account for the emergency reserve and other obligations.
+
+The available amount for optional repayment must be calculated using
+verified balances and the user's configured financial constraints.
+
+IMPORTANT:
+
+Do not assume that all assets are liquid.
+
+A fixed deposit, investment, locked deposit or collateral-backed asset
+must not automatically be considered available cash.
+
+============================================================
+PART 3 — LOAN MANAGEMENT AND PREPAYMENT OPTIMISATION
+============================================================
+
+Upgrade the loan management system.
+
+Users must be able to add and manage loans with the following information,
+where applicable:
+
+- Loan name.
+- Loan category.
+- Lender.
+- Original principal.
+- Outstanding principal.
+- Interest rate.
+- Interest calculation method.
+- Interest rate type.
+- Loan start date.
+- Loan maturity date.
+- EMI amount.
+- EMI due date.
+- Remaining tenure.
+- Payment frequency.
+- Prepayment availability.
+- Minimum prepayment amount.
+- Maximum prepayment amount.
+- Partial prepayment charges.
+- Foreclosure charges.
+- Processing fees.
+- Applicable taxes and additional charges.
+- Prepayment restrictions.
+- Loan-specific terms.
+
+Do not assume every loan supports every field.
+
+Use the actual lender's terms supplied by the user.
+
+If a calculation requires a missing parameter, ask the user rather than
+inventing it.
+
+A. PREPAYMENT CALCULATOR
+
+Allow users to simulate:
+
+- Partial loan prepayment.
+- Full loan foreclosure.
+- Additional monthly payments.
+- Increased EMI.
+- Reduced tenure.
+- Reduced EMI, where supported.
+
+For each simulation, calculate:
+
+- Current outstanding amount.
+- Proposed prepayment amount.
+- Applicable charges.
+- Taxes and fees.
+- Remaining principal.
+- Revised repayment schedule.
+- Total remaining interest.
+- Total repayment amount.
+- Estimated interest savings.
+- Estimated time saved.
+- Net financial benefit after charges.
+
+Clearly distinguish gross interest savings from net savings.
+
+Example:
+
+Loan outstanding: ₹3,00,000
+Interest rate: 12%
+Proposed prepayment: ₹50,000
+Prepayment charge: 2%
+Applicable tax: User-provided or verified configuration.
+
+Show:
+
+1. Cost of prepayment.
+2. Revised outstanding principal.
+3. Revised repayment schedule.
+4. Interest saved.
+5. Net benefit after charges.
+6. Whether prepayment is financially beneficial.
+
+The figures above are illustrative. Actual calculations must use the
+loan's configured terms and the correct interest calculation method.
+
+B. AVALANCHE STRATEGY
+
+Implement the debt avalanche strategy.
+
+Prioritise debts according to their effective borrowing cost, subject to
+the actual repayment terms.
+
+The strategy must account for:
+
+- Interest rates.
+- Outstanding balances.
+- Mandatory minimum payments.
+- Due dates.
+- Prepayment charges.
+- Foreclosure charges.
+- Available surplus.
+- Loan-specific restrictions.
+
+C. SNOWBALL STRATEGY
+
+Implement the debt snowball strategy.
+
+Prioritise smaller outstanding balances first while maintaining all
+mandatory payments.
+
+However, the system must also calculate the impact of prepayment charges
+and other financial costs.
+
+Do not present snowball as automatically cheaper than avalanche.
+
+D. STRATEGY COMPARISON
+
+Allow users to compare:
+
+- Avalanche.
+- Snowball.
+- Custom repayment order.
+- User-defined additional monthly repayment.
+- No additional repayment.
+
+Display:
+
+- Expected debt-free date.
+- Total interest.
+- Total repayment.
+- Total charges.
+- Net savings.
+- Monthly cash-flow impact.
+
+Example:
+
+A user has:
+
+Loan A: ₹1,00,000 at 18%.
+Loan B: ₹40,000 at 10%.
+Loan C: ₹20,000 at 15%.
+
+The system should calculate the avalanche and snowball orders using
+actual loan terms.
+
+Do not hardcode the repayment order.
+
+If prepayment charges change the economically optimal order, explain why.
+
+E. CUSTOM STRATEGY
+
+Allow users to override the suggested order.
+
+The application should recalculate the outcome immediately.
+
+Never prevent a user from selecting a legally and financially valid
+repayment strategy merely because the model prefers another one.
+
+============================================================
+PART 4 — CREDIT-CARD INTELLIGENCE
+============================================================
+
+Upgrade credit-card management from basic outstanding tracking to
+proactive credit utilisation management.
+
+A. CARD CONFIGURATION
+
+Each credit card should support:
+
+- Card name.
+- Issuer.
+- Credit limit.
+- Current outstanding.
+- Available credit.
+- Statement generation date.
+- Payment due date.
+- Minimum amount due.
+- Total amount due.
+- Interest rate.
+- Late payment charges.
+- Configured utilisation threshold.
+- EMI conversion availability.
+- EMI conversion charges.
+- Card-specific repayment preferences.
+
+All values must be maintained consistently.
+
+B. PROACTIVE CREDIT UTILISATION MANAGEMENT
+
+The application must monitor credit utilisation continuously.
+
+Credit utilisation:
+
+Outstanding credit-card balance / Total credit limit × 100.
+
+Use the user's configured threshold.
+
+Do not assume a universal utilisation threshold.
+
+Before statement generation, identify cards whose utilisation is
+above the configured threshold.
+
+If sufficient money is available, recommend a specific repayment amount
+for each affected card.
+
+Example:
+
+Card M:
+Credit limit: ₹1,00,000
+Outstanding: ₹75,000
+Configured utilisation threshold: 30%
+
+Card N:
+Credit limit: ₹50,000
+Outstanding: ₹30,000
+Configured utilisation threshold: 20%
+
+Available bank balance: ₹60,000
+Configured emergency reserve: ₹20,000
+
+The system must:
+
+1. Identify both cards as exceeding their configured thresholds.
+2. Calculate the outstanding amount required to reach each threshold.
+3. Evaluate available funds after emergency reserves and mandatory
+   obligations.
+4. Recommend how much to pay towards Card M and Card N.
+5. Explain why each payment is recommended.
+6. Show the expected utilisation after payment.
+7. Show the remaining available bank balance.
+8. Allow the user to modify the suggested allocation.
+
+Do not automatically distribute payments equally.
+
+Do not recommend payments that compromise mandatory obligations
+or configured reserves.
+
+If sufficient funds are not available to bring all cards below
+their thresholds, explain the shortfall and prioritise recommendations
+using explicitly configured user preferences and financial constraints.
+
+C. STATEMENT GENERATION AWARENESS
+
+The system must understand the difference between:
+
+- Current outstanding.
+- Statement balance.
+- Minimum amount due.
+- Total amount due.
+- Available credit.
+- Payment due date.
+- Statement generation date.
+
+Do not confuse a current outstanding balance with a generated statement
+balance.
+
+Do not claim that paying before statement generation guarantees a
+particular credit bureau outcome.
+
+Present utilisation recommendations as financial management guidance,
+not as guaranteed credit-score improvements.
+
+D. CREDIT-CARD REPAYMENT CHOICE
+
+For every eligible credit-card repayment, allow the user to choose:
+
+1. Full payment.
+2. EMI conversion.
+
+Never force either option.
+
+Before the user makes a decision, show the relevant details.
+
+For EMI conversion, display:
+
+- Amount converted.
+- Interest rate.
+- Processing fee.
+- Applicable taxes.
+- Tenure.
+- Monthly EMI.
+- Total interest.
+- Total repayment.
+- Total cost compared with full payment.
+
+Example:
+
+Outstanding eligible amount: ₹30,000.
+
+Option A:
+Pay ₹30,000 in full.
+
+Option B:
+Convert ₹30,000 into an EMI using the actual issuer-provided terms.
+
+Show the total cost of both options.
+
+Do not invent EMI terms or assume that every card supports EMI conversion.
+
+Allow the user to select their preferred repayment method.
+
+Store the decision and reflect it in future cash-flow forecasts.
+
+============================================================
+PART 5 — TRANSACTION LEDGER AND REVERSAL ENGINE
+============================================================
+
+This is a critical financial integrity requirement.
+
+The transaction ledger must maintain a reliable relationship between
+transactions and the financial accounts affected by them.
+
+A. TRANSACTION DELETION
+
+When a user deletes a transaction, the application must reverse the
+financial effect of that transaction on its original source and
+destination accounts.
+
+Example 1 — Bank expense:
+
+Initial bank balance: ₹50,000.
+
+User records an expense of ₹2,000.
+
+New balance: ₹48,000.
+
+User deletes the expense.
+
+Correct restored balance: ₹50,000.
+
+Example 2 — Credit-card purchase:
+
+Initial card outstanding: ₹10,000.
+
+User records a purchase of ₹2,000.
+
+New outstanding: ₹12,000.
+
+User deletes the purchase.
+
+Correct restored outstanding: ₹10,000.
+
+Example 3 — Transfer:
+
+Account A: ₹50,000.
+Account B: ₹10,000.
+
+User transfers ₹5,000 from A to B.
+
+New balances:
+
+Account A: ₹45,000.
+Account B: ₹15,000.
+
+User deletes or reverses the transfer.
+
+Restored balances:
+
+Account A: ₹50,000.
+Account B: ₹10,000.
+
+Example 4 — Credit-card payment:
+
+Bank balance: ₹50,000.
+Credit-card outstanding: ₹20,000.
+
+User pays ₹5,000 towards the card.
+
+New bank balance: ₹45,000.
+New card outstanding: ₹15,000.
+
+If the payment transaction is reversed, restore the original financial
+position correctly.
+
+B. ATOMICITY AND CONSISTENCY
+
+Transaction deletion and reversal must be handled through a database
+transaction.
+
+Either all related balance adjustments succeed or none of them do.
+
+Never allow partial reversal.
+
+C. IDEMPOTENCY
+
+A transaction must never be reversed twice.
+
+Implement an explicit reversal state or equivalent reliable mechanism.
+
+Repeated deletion requests must not repeatedly restore money.
+
+D. AUDITABILITY
+
+Maintain:
+
+- Original transaction.
+- Original source account.
+- Original destination account.
+- Original amount.
+- Original transaction type.
+- Reversal reference.
+- Reversal timestamp.
+- User initiating the operation.
+- Reason, if supplied.
+- Previous and resulting balance states.
+
+E. HISTORICAL INTEGRITY
+
+Do not silently erase financial history.
+
+Use an appropriate soft-delete, reversal or immutable-ledger design.
+
+The user should be able to understand what happened to their balances.
+
+F. DEPENDENT TRANSACTIONS
+
+Handle transactions that depend on other transactions.
+
+Example:
+
+A bank transfer funds a subsequent investment purchase.
+
+Deleting the original transfer must not silently corrupt the investment
+purchase or produce an impossible account balance.
+
+Identify dependencies and apply an explicit, safe reversal policy.
+
+If a reversal cannot be performed safely, explain why and ask the user
+for the necessary action.
+
+============================================================
+PART 6 — ML PREDICTION AND TRANSACTION TAG INTELLIGENCE
+============================================================
+
+Upgrade the existing ML prediction chips and spending prediction logic.
+
+The current system must not treat a single transaction amount as a
+reliable indicator of a recurring financial pattern.
+
+A. TAG-FIRST PREDICTION
+
+Use transaction tags as the primary features for identifying recurring
+behaviour.
+
+Examples:
+
+- Food.
+- Transportation.
+- Healthcare.
+- Shopping.
+- Utilities.
+- Education.
+- Entertainment.
+
+The model should learn patterns associated with tags rather than
+blindly memorising individual transaction amounts.
+
+B. AMOUNT-SPECIFIC PREDICTIONS
+
+Amount-specific prediction is allowed only when sufficient evidence
+exists.
+
+Use the following eligibility conditions:
+
+1. The same tag and amount pattern occurs in more than the configured
+   percentage of the user's relevant transactions.
+
+OR
+
+2. The same tag and amount pattern occurs consistently at a recurring
+   frequency, such as daily.
+
+The percentage threshold and recurrence criteria must be configurable
+or derived from existing documented model configuration.
+
+Do not invent an arbitrary percentage.
+
+If the existing system has no such configuration, ask me to approve
+the proposed threshold before implementation.
+
+C. EXAMPLE
+
+Suppose the user has 100 transactions.
+
+The tag "Transportation" appears 25 times.
+
+Within those transactions, ₹100 appears only once.
+
+The system must not conclude that the user regularly spends ₹100
+on transportation.
+
+Now suppose ₹100 appears 20 times under the Transportation tag.
+
+This is a meaningful repeated amount pattern and may qualify for
+amount-specific prediction, subject to the configured threshold.
+
+Another example:
+
+The user makes a ₹150 transportation transaction every day.
+
+Even if the amount does not represent a large percentage of all
+transactions, its consistent daily recurrence can qualify it as a
+recurring pattern.
+
+D. PREDICTION CHIP REQUIREMENTS
+
+Each prediction chip must:
+
+- Have an understandable label.
+- Identify the relevant transaction tag.
+- Show why the prediction exists.
+- Distinguish observed behaviour from predicted behaviour.
+- Show confidence only when statistically justified.
+- Avoid false precision.
+- Avoid making unsupported financial claims.
+
+Example:
+
+"Transportation spending may recur today."
+
+Explanation:
+
+"Transportation transactions have appeared consistently over the
+previous configured observation period."
+
+Do not display an exact amount unless the amount prediction qualifies
+under the evidence rules.
+
+E. COLD-START HANDLING
+
+When there is insufficient historical data:
+
+- Do not manufacture predictions.
+- Display insufficient historical data.
+- Use descriptive statistics where appropriate.
+- Avoid displaying artificially high confidence.
+
+============================================================
+PART 7 — EMERGENCY FUND AND LIQUIDITY PROTECTION
+============================================================
+
+Implement emergency-fund protection across all financial recommendations.
+
+Users must be able to configure:
+
+- Emergency reserve target.
+- Minimum protected bank balance.
+- Protected cash amount.
+- Accounts eligible for emergency reserves.
+- Accounts excluded from emergency reserves.
+- Other liquidity restrictions.
+
+The system must distinguish:
+
+1. Available liquid money.
+2. Restricted money.
+3. Invested money.
+4. Collateral-backed money.
+5. Emergency reserves.
+6. Money already allocated to upcoming obligations.
+
+Example:
+
+Bank balance: ₹80,000.
+Emergency reserve: ₹30,000.
+Upcoming mandatory payments: ₹20,000.
+
+The system must not treat the full ₹80,000 as freely available for
+optional debt repayment.
+
+It must calculate the actual available surplus after applying the
+user's configured constraints.
+
+If the available surplus is zero, explain why no additional repayment
+is recommended.
+
+Never silently override the user's emergency reserve configuration.
+
+============================================================
+PART 8 — WHAT-IF FINANCIAL SIMULATOR
+============================================================
+
+Build an interactive financial what-if simulator.
+
+Users must be able to simulate hypothetical decisions without changing
+their actual financial records.
+
+Supported scenarios:
+
+- Additional loan prepayment.
+- Increased monthly EMI.
+- Reduced monthly spending.
+- Additional savings.
+- Credit-card repayment.
+- Credit-card EMI conversion.
+- Loan foreclosure.
+- Emergency-fund changes.
+- Debt consolidation.
+- Balance transfer.
+- Investment allocation changes.
+
+Example:
+
+A user asks:
+
+"What happens if I pay an additional ₹5,000 towards my loan every month?"
+
+Show:
+
+- Current repayment schedule.
+- Hypothetical repayment schedule.
+- Revised debt-free date.
+- Interest saved.
+- Additional monthly cash requirement.
+- Remaining disposable income.
+- Emergency reserve impact.
+- Net-worth impact.
+
+Allow comparisons between multiple scenarios.
+
+Example:
+
+Scenario A: No additional repayment.
+Scenario B: ₹5,000 additional monthly repayment.
+Scenario C: ₹10,000 additional monthly repayment.
+
+Clearly label every scenario as hypothetical.
+
+Never write hypothetical results into actual account balances.
+
+============================================================
+PART 9 — FINANCIAL ANOMALY DETECTION
+============================================================
+
+Implement anomaly detection for:
+
+- Duplicate transactions.
+- Unexpected deductions.
+- Unusually large expenses.
+- Sudden account balance changes.
+- Unexpected recurring payments.
+- Unusual credit-card spending.
+- Unexpected loan charges.
+- Missing expected transactions.
+- Inconsistent transaction classifications.
+
+Example:
+
+The user normally spends ₹200–₹500 on transportation.
+
+A new transportation transaction appears for ₹8,000.
+
+The system may flag it for review.
+
+It must not automatically classify the transaction as fraudulent.
+
+Display:
+
+- What was detected.
+- Why it was flagged.
+- Relevant historical comparison.
+- Confidence or evidence level.
+- Suggested user action.
+
+Anomaly detection must never automatically delete, reverse or modify
+a transaction.
+
+============================================================
+PART 10 — DEBT RESTRUCTURING ANALYSIS
+============================================================
+
+Provide financial comparisons for:
+
+- Balance transfers.
+- Loan refinancing.
+- Loan consolidation.
+- Debt restructuring.
+- Foreclosure.
+- Alternative repayment schedules.
+
+For each option, calculate:
+
+- Existing outstanding.
+- Proposed new outstanding.
+- Interest rate.
+- Processing charges.
+- Foreclosure charges.
+- Transfer charges.
+- Taxes.
+- New tenure.
+- New EMI.
+- Total repayment.
+- Total interest.
+- Net savings or additional cost.
+
+Example:
+
+Existing loan:
+
+Outstanding: ₹2,00,000.
+Interest rate: 16%.
+
+Proposed refinancing:
+
+Interest rate: 12%.
+Processing fee: User-provided.
+
+The system must compare the actual total cost of both arrangements.
+
+A lower interest rate does not automatically mean a better financial
+decision.
+
+Account for fees, tenure changes and the resulting total repayment.
+
+Do not claim that refinancing is available unless the user supplies
+or verifies the applicable offer and terms.
+
+============================================================
+PART 11 — FINANCIAL RECOMMENDATION EXPLANATIONS
+============================================================
+
+Every financial recommendation must be explainable.
+
+For every recommendation, display:
+
+1. What the system recommends.
+2. Why it recommends it.
+3. Which financial records were considered.
+4. Which calculations were performed.
+5. What assumptions or user-provided parameters were used.
+6. Expected financial benefit.
+7. Potential downside.
+8. Risks and limitations.
+9. What happens if the user does nothing.
+
+Example:
+
+Recommendation:
+
+"Consider paying ₹8,000 towards Card M before statement generation."
+
+Explanation:
+
+- Current utilisation exceeds the user's configured threshold.
+- Available funds were evaluated.
+- Emergency reserves were protected.
+- Upcoming mandatory payments were considered.
+- The proposed payment would reduce utilisation to the calculated level.
+
+Display the actual calculations and resulting balances.
+
+Never use generic explanations such as:
+
+"AI recommends this because it is financially beneficial."
+
+============================================================
+PART 12 — SCHEDULED TRANSFER AND PAYMENT VALIDATION
+============================================================
+
+Audit all scheduled transfers and recurring financial obligations.
+
+The system must distinguish between:
+
+- Scheduled transactions.
+- Pending transactions.
+- Actual completed transactions.
+- Failed transactions.
+- Cancelled transactions.
+- Manually overridden transactions.
+
+A scheduled transaction must not automatically be treated as an
+actual completed payment.
+
+Validate scheduled transfers against:
+
+- Source account.
+- Destination account.
+- Expected amount.
+- Available balance.
+- Execution status.
+- Actual transaction evidence.
+
+Example:
+
+A ₹17,000 transfer is scheduled.
+
+The application must not deduct ₹17,000 from the actual account balance
+merely because the transfer is scheduled.
+
+It may account for it as a future obligation in cash-flow forecasts.
+
+Only confirmed execution should update actual financial balances.
+
+============================================================
+PART 13 — FINANCIAL DATA CLASSIFICATION
+============================================================
+
+Audit existing transaction classification logic.
+
+Example:
+
+"Autorickshaw" must not be incorrectly categorised as Food & Dining.
+
+Implement an appropriate classification system using:
+
+- Merchant information.
+- Transaction description.
+- User-defined categories.
+- Existing tags.
+- Historical corrections.
+- Classification confidence.
+
+Allow users to correct classifications.
+
+Persist user corrections so the system can use them appropriately
+in future classification.
+
+Do not silently overwrite manually corrected categories.
+
+============================================================
+PART 14 — FIXED DEPOSIT AND RESTRICTED LIQUIDITY
+============================================================
+
+Audit the treatment of fixed deposits and collateral-backed assets.
+
+Example:
+
+A user has a ₹17,000 fixed deposit pledged against a credit card.
+
+The application must not treat this amount as freely available cash.
+
+Represent:
+
+- Gross asset value.
+- Restricted amount.
+- Available amount.
+- Associated liability or collateral relationship.
+- Liquidity status.
+
+Ensure net-worth calculations do not double-count collateral
+or misrepresent restricted liquidity.
+
+The same principles must apply to other locked or restricted assets.
+
+============================================================
+PART 15 — MONTHLY CASH-FLOW AND OBLIGATION FORECASTING
+============================================================
+
+Build a reliable cash-flow projection system.
+
+It must consider:
+
+- Confirmed income.
+- Expected income.
+- Recurring expenses.
+- Loan EMIs.
+- Credit-card repayments.
+- Scheduled transfers.
+- Rent.
+- Other mandatory payments.
+- User-defined financial goals.
+- Expected one-time expenses.
+
+Distinguish confirmed historical transactions from forecasts.
+
+Overrides must not be treated as actual payments.
+
+Example:
+
+If a user manually overrides October rent to ₹15,000, the system
+must not automatically conclude that ₹15,000 was actually paid.
+
+The override should affect the relevant forecast or planning calculation
+according to its explicitly defined meaning.
+
+============================================================
+PART 16 — SECURITY AND AUTHENTICATION
+============================================================
+
+Audit existing authentication and PIN handling.
+
+Replace plain SHA-256 PIN hashing with Argon2id where applicable.
+
+Implement:
+
+- Secure password and PIN handling.
+- Appropriate salt generation.
+- Configurable secure hashing parameters.
+- Rate limiting.
+- Brute-force protection.
+- Session security.
+- Authorisation checks.
+- Secure secret management.
+- Database access controls.
+- Input validation.
+- Protection against SQL injection.
+- Protection against common web vulnerabilities.
+- Secure audit logs.
+
+Never log:
+
+- Passwords.
+- PINs.
+- Authentication tokens.
+- Full sensitive financial credentials.
+
+Never store financial credentials in plaintext.
+
+Preserve compatibility with existing users through a secure migration
+strategy.
+
+Do not simply invalidate every user's authentication credentials
+without an approved migration plan.
+
+============================================================
+PART 17 — DATABASE AND ARCHITECTURAL INTEGRITY
+============================================================
+
+Inspect the existing database architecture.
+
+Implement the necessary schema changes without unnecessarily
+redesigning unrelated components.
+
+Requirements:
+
+- Referential integrity.
+- Foreign-key constraints.
+- Appropriate unique constraints.
+- Appropriate indexes.
+- Atomic financial operations.
+- Consistent decimal precision.
+- Reliable timestamp handling.
+- Database migrations.
+- Auditable balance changes.
+- Idempotent financial operations.
+
+Do not use floating-point arithmetic for financial values.
+
+Use an appropriate decimal or fixed-precision representation.
+
+All financial calculations must define their rounding behaviour.
+
+Ensure concurrent operations cannot produce incorrect account balances.
+
+Example:
+
+Two simultaneous requests attempt to debit the same account.
+
+The application must prevent an invalid negative balance or inconsistent
+ledger state according to the account's configured rules.
+
+Use appropriate database transactions, locking or concurrency controls.
+
+Avoid loading millions of transactions into memory when aggregation
+can be performed efficiently by the database.
+
+============================================================
+PART 18 — PERFORMANCE AND SCALABILITY
+============================================================
+
+The application must remain efficient with large financial histories.
+
+Design for:
+
+- Millions of transactions.
+- Multiple accounts per user.
+- Multiple loans per user.
+- Multiple credit cards per user.
+- Long historical transaction records.
+- Large audit histories.
+- Concurrent users.
+
+Requirements:
+
+- Efficient database queries.
+- Pagination.
+- Appropriate indexing.
+- Query optimisation.
+- Avoidance of N+1 queries.
+- Efficient aggregation.
+- Background processing where appropriate.
+- Asynchronous I/O where appropriate.
+- Bounded resource usage.
+- Caching only where correctness is preserved.
+
+Do not introduce unnecessary complexity or premature distributed
+architecture.
+
+Performance must be measured rather than claimed.
+
+============================================================
+PART 19 — USER EXPERIENCE
+============================================================
+
+Integrate the features into the existing NetWorthIQ interface.
+
+Do not create disconnected features that look like separate products.
+
+The experience should provide:
+
+- Loan management.
+- Debt strategy comparison.
+- Credit utilisation alerts.
+- Repayment recommendations.
+- EMI versus full-payment comparisons.
+- Emergency reserve monitoring.
+- What-if simulations.
+- Financial anomaly alerts.
+- Debt restructuring comparisons.
+- Explainable prediction chips.
+- Transaction reversal history.
+
+Recommendations should be actionable.
+
+Users must be able to:
+
+- Accept a recommendation.
+- Reject a recommendation.
+- Modify a proposed amount.
+- Mark a recommendation as not relevant.
+- View the calculation behind it.
+
+Do not automatically execute any financial recommendation.
+
+Do not overwhelm the dashboard with alerts.
+
+Prioritise recommendations according to financial importance and urgency,
+using explicit rules.
+
+============================================================
+PART 20 — ML MODEL RELIABILITY AND CONFIDENCE
+============================================================
+
+Audit all existing ML prediction models.
+
+Pay particular attention to unsupported confidence values.
+
+Example:
+
+A career prediction model claims an 85% confidence level despite
+having very limited historical evidence.
+
+This must be investigated.
+
+Requirements:
+
+- Identify training data limitations.
+- Identify cold-start conditions.
+- Evaluate prediction quality.
+- Validate feature importance.
+- Prevent data leakage.
+- Separate predictions from observed facts.
+- Use appropriate validation methods.
+- Calibrate confidence where statistically justified.
+- Display insufficient evidence when appropriate.
+
+Do not display a numerical confidence percentage merely because
+the model can generate one.
+
+For every prediction, establish whether the confidence value has
+a defensible statistical interpretation.
+
+A model must not appear more certain than its underlying evidence.
+
+============================================================
+PART 21 — TESTING AND ACCEPTANCE CRITERIA
+============================================================
+
+Create tests for every feature.
+
+At minimum, cover the following cases.
+
+A. LOAN TESTS
+
+- Loan creation.
+- Loan editing.
+- Partial prepayment.
+- Full foreclosure.
+- Prepayment charges.
+- Interest savings.
+- Avalanche ordering.
+- Snowball ordering.
+- Strategy comparison.
+- Insufficient input data.
+
+B. CREDIT-CARD TESTS
+
+- Utilisation calculation.
+- Configured threshold detection.
+- Pre-statement recommendations.
+- Multiple-card payment allocation.
+- Emergency reserve protection.
+- Insufficient available funds.
+- EMI versus full-payment comparison.
+- Missing issuer terms.
+
+C. LEDGER TESTS
+
+- Expense deletion.
+- Purchase reversal.
+- Credit-card payment reversal.
+- Transfer reversal.
+- Duplicate reversal prevention.
+- Concurrent reversal attempts.
+- Dependent transaction handling.
+- Failed database transaction rollback.
+
+D. ML TESTS
+
+- Single transaction.
+- Repeated tag.
+- Repeated amount.
+- Daily recurrence.
+- Insufficient historical data.
+- Configured percentage threshold.
+- False-positive prevention.
+- Confidence validation.
+
+E. SIMULATION TESTS
+
+- Additional monthly loan repayment.
+- Different repayment strategies.
+- Multiple what-if scenarios.
+- Emergency reserve protection.
+- No modification of actual financial balances.
+
+F. SECURITY TESTS
+
+- Authentication migration.
+- Argon2id verification.
+- Invalid authorisation.
+- Rate limiting.
+- Injection attempts.
+- Sensitive data leakage.
+
+G. REGRESSION TESTS
+
+Ensure all previously working NetWorthIQ functionality continues
+to work correctly.
+
+Do not consider the implementation complete merely because the
+application starts successfully.
+
+============================================================
+PART 22 — IMPLEMENTATION WORKFLOW
+============================================================
+
+Follow this workflow strictly.
+
+PHASE 1 — REPOSITORY AUDIT
+
+Inspect the repository and prepare:
+
+- Architecture overview.
+- Existing feature inventory.
+- Database schema overview.
+- Financial calculation inventory.
+- ML model inventory.
+- Security assessment.
+- Identified bugs.
+- Dependencies between existing modules.
+
+Do not modify code yet.
+
+PHASE 2 — REQUIREMENTS VALIDATION
+
+Map every requirement in this prompt to the existing implementation.
+
+For every requirement, classify it as:
+
+- Already implemented correctly.
+- Partially implemented.
+- Missing.
+- Implemented incorrectly.
+- Blocked by missing information.
+
+Ask me for missing information that cannot safely be derived from
+existing code or explicitly configured by the user.
+
+Do not repeatedly ask for information already available in the repository.
+
+PHASE 3 — TECHNICAL DESIGN
+
+Prepare:
+
+- Proposed architecture.
+- Database changes.
+- Migration plan.
+- API changes.
+- Service-layer changes.
+- ML changes.
+- UI changes.
+- Security changes.
+- Testing strategy.
+- Implementation sequence.
+
+Identify dependencies between features.
+
+PHASE 4 — IMPLEMENTATION
+
+Implement in small, logically separated modules.
+
+Do not produce one giant script.
+
+Do not mix:
+
+- Financial calculations.
+- Database access.
+- ML inference.
+- API handling.
+- UI logic.
+- Authentication.
+
+Use clear interfaces and appropriate abstractions.
+
+PHASE 5 — VALIDATION
+
+Run:
+
+- Unit tests.
+- Integration tests.
+- Regression tests.
+- Database migration tests.
+- Financial calculation tests.
+- Security tests.
+- Performance tests.
+
+Fix failures before declaring completion.
+
+PHASE 6 — FINAL REPORT
+
+Provide:
+
+1. Features implemented.
+2. Features already supported and reused.
+3. Files created.
+4. Files modified.
+5. Database migrations introduced.
+6. Financial calculation changes.
+7. ML changes.
+8. Security improvements.
+9. Tests executed.
+10. Test results.
+11. Known limitations.
+12. Outstanding questions.
+13. Deployment and migration instructions.
+
+Never claim that a test passed if it was not actually executed.
+
+============================================================
+FINAL NON-NEGOTIABLE PRINCIPLES
+============================================================
+
+1. Financial accuracy is more important than clever AI features.
+
+2. The ledger and deterministic financial calculation engine are the
+   source of truth.
+
+3. ML must assist financial decisions, not control financial records.
+
+4. Every recommendation must be explainable.
+
+5. Every financial transaction must be auditable.
+
+6. Deleting or reversing a transaction must never silently corrupt
+   account balances.
+
+7. Restricted assets must never be treated as freely available cash.
+
+8. Emergency reserves and mandatory obligations must be protected
+   according to user configuration.
+
+9. The user always retains control over financial decisions.
+
+10. Never invent missing financial terms, rates, charges or assumptions.
+
+11. Preserve existing functionality and historical financial data.
+
+12. Build for real-world financial reliability, not merely an impressive
+    dashboard.
+
+Your objective is to make NetWorthIQ a dependable financial intelligence
+system that understands the user's complete financial position,
+simulates possible decisions, identifies risks and provides actionable
+recommendations without compromising financial accuracy or user control.
+
+BEGIN WITH PHASE 1 ONLY.
+
+Do not start modifying files until the repository audit and requirements
+validation are complete and I have approved the technical design.

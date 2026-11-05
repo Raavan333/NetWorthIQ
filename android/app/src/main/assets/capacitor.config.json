@@ -1,0 +1,8 @@
+{
+	"appId": "com.networthiq.app",
+	"appName": "NetWorthIQ",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https"
+	}
+}
