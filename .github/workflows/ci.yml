@@ -64,7 +64,7 @@ jobs:
 
       - name: Compile Android APK via Gradle
         working-directory: android
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Package Installable Android APK
         run: |
