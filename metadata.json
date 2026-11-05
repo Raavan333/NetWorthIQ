@@ -1,0 +1,6 @@
+{
+  "name": "NetWorthIQ",
+  "description": "Offline-first personal net worth tracking, multi-currency valuation, credit card cycle monitoring, statistical insights, and tax estimation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

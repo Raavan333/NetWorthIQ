@@ -1,0 +1,275 @@
+import {
+  AppSettings,
+  AppTheme,
+  AssetType,
+  Currency,
+  Holding,
+  Liability,
+  IncomeStream,
+  Transaction,
+  Bill,
+  Goal,
+  SaleRecord,
+  SubconsciousNudgePreferences,
+  TaxRules,
+} from '../types';
+
+export const BUILT_IN_ASSET_TYPES: AssetType[] = [
+  // Bucket 1: Liquid Cash & Banking
+  { id: 'type-bank', name: 'Bank Accounts', category: 'Liquid Cash & Banking', returnMode: 'fixed', defaultLiquidity: 'Immediate', isBuiltIn: true },
+  { id: 'type-cash-hand', name: 'Hand Cash', category: 'Liquid Cash & Banking', returnMode: 'fixed', defaultLiquidity: 'Immediate', isBuiltIn: true },
+  { id: 'type-cash', name: 'Other Cash / Wallets', category: 'Liquid Cash & Banking', returnMode: 'fixed', defaultLiquidity: 'Immediate', isBuiltIn: true },
+  // Bucket 2: Equities & Market Investments
+  { id: 'type-stock-in', name: 'Indian Stocks (NSE/BSE)', category: 'Equities & Market Investments', returnMode: 'realised-only', defaultLiquidity: 'Short', isBuiltIn: true },
+  { id: 'type-stock-us', name: 'US / Foreign Stocks', category: 'Equities & Market Investments', returnMode: 'realised-only', defaultLiquidity: 'Short', isBuiltIn: true },
+  { id: 'type-mf', name: 'Mutual Funds (SIP / Lumpsum)', category: 'Equities & Market Investments', returnMode: 'realised-only', defaultLiquidity: 'Short', isBuiltIn: true },
+  // Bucket 3: Fixed Income & Term Deposits
+  { id: 'type-fd', name: 'Fixed Deposits (FD)', category: 'Fixed Income & Term Deposits', returnMode: 'fixed', defaultLiquidity: 'Locked', isBuiltIn: true },
+  { id: 'type-bond-corp', name: 'Corporate Bonds', category: 'Fixed Income & Term Deposits', returnMode: 'fixed', defaultLiquidity: 'Short', isBuiltIn: true },
+  // Bucket 4: Alternative Lending & Credit
+  { id: 'type-friend-loan-given', name: 'Money Lent to Friend (0% p.a. Receivable)', category: 'Alternative Lending & Credit', returnMode: 'fixed', defaultLiquidity: 'Short', isBuiltIn: true },
+  { id: 'type-p2p', name: 'P2P Lending', category: 'Alternative Lending & Credit', returnMode: 'fixed', defaultLiquidity: 'Locked', isBuiltIn: true },
+];
+
+export const DEFAULT_SPEND_CATEGORIES = [
+  { id: 'cat-food', name: 'Food & Dining', color: '#f59e0b', icon: 'Utensils', isDefault: true },
+  { id: 'cat-groceries', name: 'Groceries', color: '#10b981', icon: 'ShoppingBag', isDefault: true },
+  { id: 'cat-transport', name: 'Transport & Fuel', color: '#3b82f6', icon: 'Car', isDefault: true },
+  { id: 'cat-utilities', name: 'Utilities & Bills', color: '#06b6d4', icon: 'Zap', isDefault: true },
+  { id: 'cat-shopping', name: 'Shopping', color: '#ec4899', icon: 'Tag', isDefault: true },
+  { id: 'cat-health', name: 'Health & Medical', color: '#ef4444', icon: 'Activity', isDefault: true },
+  { id: 'cat-entertainment', name: 'Entertainment', color: '#8b5cf6', icon: 'Film', isDefault: true },
+  { id: 'cat-education', name: 'Education', color: '#14b8a6', icon: 'BookOpen', isDefault: true },
+  { id: 'cat-other', name: 'Other / Misc', color: '#64748b', icon: 'MoreHorizontal', isDefault: true },
+];
+
+export const DEFAULT_QUICK_CHIPS = [
+  { id: 'chip-1', label: 'Groceries', reason: 'Supermarket Groceries', category: 'Groceries' },
+  { id: 'chip-2', label: 'Fuel refill', reason: 'Fuel refill', category: 'Transport & Fuel' },
+  { id: 'chip-3', label: 'Coffee / Tea', reason: 'Coffee break', category: 'Food & Dining' },
+  { id: 'chip-4', label: 'Auto / Cab', reason: 'Cab ride', category: 'Transport & Fuel' },
+  { id: 'chip-5', label: 'Dining Out', reason: 'Dinner with friends', category: 'Food & Dining' },
+];
+
+export const DEFAULT_CURRENCIES: Currency[] = [
+  { code: 'INR', symbol: '₹', rateToBase: 1.0, updatedAt: new Date().toISOString() },
+  { code: 'USD', symbol: '$', rateToBase: 86.5, updatedAt: new Date().toISOString() },
+  { code: 'EUR', symbol: '€', rateToBase: 94.2, updatedAt: new Date().toISOString() },
+  { code: 'GBP', symbol: '£', rateToBase: 112.8, updatedAt: new Date().toISOString() },
+];
+
+export const DEFAULT_TAX_RULES: TaxRules = {
+  equityLtcgThresholdMonths: 12,
+  equityStcgRatePct: 20.0,
+  equityLtcgRatePct: 12.5,
+  equityLtcgExemptionLimit: 125000,
+  foreignLtcgThresholdMonths: 24,
+  foreignLtcgRatePct: 12.5,
+  userSlabRatePct: 30.0,
+  isSlabAssumed: true,
+  cessPct: 4.0,
+  cessEnabled: true,
+  lossSetoffEnabled: true,
+};
+
+export const DEFAULT_SUBCONSCIOUS_NUDGE_PREFS: SubconsciousNudgePreferences = {
+  enabled: true,
+  frequency: 'balanced',
+  guidanceAggressiveness: 'balanced',
+  aggressiveSavings: true,
+  gentleSpendingReminders: true,
+  goalMilestoneAlerts: true,
+  capitalRetentionGuards: true,
+  autoCycleWhispers: true,
+};
+
+export const DEFAULT_SETTINGS: AppSettings = {
+  appName: 'NetWorthIQ',
+  profileName: 'Investor',
+  avatarColor: '#10b981',
+  baseCurrency: 'INR',
+  staleRateDays: 7,
+  minCashThresholdMode: 'auto',
+  minCashMonths: 3,
+  minCashCustom: 25000,
+  cashFlowBufferAmount: 50000,
+  defaultCardInterestFreeDays: 18,
+  defaultCardPenaltyRateMonthly: 3.5,
+  defaultAlertLeadDays: 5,
+  cardCompoundingPenalty: false,
+  finalRateDenominator: 'netWorth',
+  showAfterExpensesRate: false,
+  includeTaxInLiabilities: true,
+  creditUtilizationThresholdPct: 30,
+  numberGrouping: 'inr',
+  dateFormat: 'YYYY-MM-DD',
+  fyStartMonth: 4, // April
+  reduceMotion: false,
+  pinLockEnabled: true,
+  pinHash: '',
+  pinSalt: '',
+  autoLockMinutes: 1,
+  biometricsEnabled: false,
+  lockOnScreenOff: true,
+  goalForecastWindow: 'monthly_avg',
+  debitCardMetroAtmLimit: 5,
+  debitCardNonMetroAtmLimit: 3,
+  debitCardExtraFeePerWithdrawal: 21,
+  enforcePrepaymentStrategy: true,
+  enforceDuplicateGuard: true,
+  duplicateDetectionWindowMinutes: 60,
+  enableSubtleGuidanceFraming: true,
+  subconsciousNudgePrefs: DEFAULT_SUBCONSCIOUS_NUDGE_PREFS,
+};
+
+export const THEME_PRESETS: AppTheme[] = [
+  {
+    id: 'theme-obsidian',
+    name: 'Obsidian Emerald (Default Dark)',
+    isDark: true,
+    colors: {
+      bg: '#080d1a',
+      surface: '#0f172a',
+      card: '#131e36',
+      text: '#f8fafc',
+      textMuted: '#94a3b8',
+      primary: '#10b981',
+      accent: '#06b6d4',
+      positive: '#10b981',
+      negative: '#f43f5e',
+      alert: '#f59e0b',
+      border: '#1e293b',
+    },
+    fontStack: 'sans',
+    fontSizeScale: 1.0,
+  },
+  {
+    id: 'theme-midnight-blue',
+    name: 'Midnight Deep Blue',
+    isDark: true,
+    colors: {
+      bg: '#030712',
+      surface: '#0b1329',
+      card: '#111c3d',
+      text: '#f9fafb',
+      textMuted: '#9ca3af',
+      primary: '#3b82f6',
+      accent: '#8b5cf6',
+      positive: '#22c55e',
+      negative: '#ef4444',
+      alert: '#f97316',
+      border: '#1f2937',
+    },
+    fontStack: 'sans',
+    fontSizeScale: 1.0,
+  },
+  {
+    id: 'theme-cyber-gold',
+    name: 'Cyber Noir & Gold',
+    isDark: true,
+    colors: {
+      bg: '#09090b',
+      surface: '#141417',
+      card: '#1c1c22',
+      text: '#fafafa',
+      textMuted: '#a1a1aa',
+      primary: '#eab308',
+      accent: '#f59e0b',
+      positive: '#10b981',
+      negative: '#ef4444',
+      alert: '#f59e0b',
+      border: '#27272a',
+    },
+    fontStack: 'sans',
+    fontSizeScale: 1.0,
+  },
+  {
+    id: 'theme-amethyst',
+    name: 'Amethyst Nebula',
+    isDark: true,
+    colors: {
+      bg: '#0c0714',
+      surface: '#150d24',
+      card: '#1e1433',
+      text: '#faf5ff',
+      textMuted: '#a855f7',
+      primary: '#c084fc',
+      accent: '#e879f9',
+      positive: '#10b981',
+      negative: '#f43f5e',
+      alert: '#f59e0b',
+      border: '#2e1c4a',
+    },
+    fontStack: 'sans',
+    fontSizeScale: 1.0,
+  },
+  {
+    id: 'theme-forest-pine',
+    name: 'Forest Pine & Mint',
+    isDark: true,
+    colors: {
+      bg: '#05110d',
+      surface: '#0b1d16',
+      card: '#122c22',
+      text: '#f0fdf4',
+      textMuted: '#86efac',
+      primary: '#10b981',
+      accent: '#2dd4bf',
+      positive: '#34d399',
+      negative: '#f87171',
+      alert: '#fbbf24',
+      border: '#163e30',
+    },
+    fontStack: 'sans',
+    fontSizeScale: 1.0,
+  },
+  {
+    id: 'theme-crimson-slate',
+    name: 'Crimson Eclipse',
+    isDark: true,
+    colors: {
+      bg: '#100a0b',
+      surface: '#1a1012',
+      card: '#24171a',
+      text: '#fff1f2',
+      textMuted: '#fda4af',
+      primary: '#f43f5e',
+      accent: '#fb7185',
+      positive: '#10b981',
+      negative: '#e11d48',
+      alert: '#f59e0b',
+      border: '#381f25',
+    },
+    fontStack: 'sans',
+    fontSizeScale: 1.0,
+  },
+  {
+    id: 'theme-light-minimal',
+    name: 'Alabaster Minimal (Light)',
+    isDark: false,
+    colors: {
+      bg: '#f8fafc',
+      surface: '#ffffff',
+      card: '#f1f5f9',
+      text: '#0f172a',
+      textMuted: '#64748b',
+      primary: '#059669',
+      accent: '#0284c7',
+      positive: '#16a34a',
+      negative: '#e11d48',
+      alert: '#d97706',
+      border: '#e2e8f0',
+    },
+    fontStack: 'sans',
+    fontSizeScale: 1.0,
+  },
+];
+
+// Zero demo portfolio data
+export const DEMO_HOLDINGS: Holding[] = [];
+export const DEMO_LIABILITIES: Liability[] = [];
+export const DEMO_INCOME_STREAMS: IncomeStream[] = [];
+export const DEMO_BILLS: Bill[] = [];
+export const DEMO_GOALS: Goal[] = [];
+export const DEMO_TRANSACTIONS: Transaction[] = [];
+export const DEMO_SALES: SaleRecord[] = [];
