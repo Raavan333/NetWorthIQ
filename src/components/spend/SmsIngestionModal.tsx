@@ -104,9 +104,15 @@ export const SmsIngestionModal: React.FC<SmsIngestionModalProps> = ({ isOpen, on
         );
       } else if (res.status === 'manual_fallback') {
         setStatusBanner('Paste bank or UPI messages below for local parsing.');
+      } else if (res.committedCount === 0 && res.stagedCount === 0) {
+        setStatusBanner(
+          res.duplicateCount > 0
+            ? `Sync complete: All messages are up to date (${res.duplicateCount} previously synced message(s) skipped).`
+            : 'Sync complete: No new financial messages found in device inbox.'
+        );
       } else {
         setStatusBanner(
-          `Recorded ${res.committedCount} transaction(s), staged ${res.stagedCount} for review, ignored ${res.droppedNoiseCount} non-financial message(s), skipped ${res.duplicateCount} duplicate(s).`
+          `Extracted ${res.committedCount + res.stagedCount} unique message(s): recorded ${res.committedCount}, staged ${res.stagedCount} for review, skipped ${res.duplicateCount} duplicate(s).`
         );
         if (res.stagedCount > 0) setActiveTab('staging');
       }

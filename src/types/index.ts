@@ -614,6 +614,9 @@ export interface Transaction {
     accountLastDigits?: string;
     refId?: string;
     reportedBalance?: number;
+    rawSms?: string;
+    rawSmsFingerprint?: string;
+    deviceMessageId?: string;
   };
   provenance?: DataProvenance;
 }
@@ -1589,7 +1592,9 @@ export type SmsPaymentMode =
 
 export interface StagedSmsItem {
   id: string;
+  deviceMessageId?: string;
   rawSms: string;
+  rawSmsFingerprint?: string;
   sender?: string;
   receivedAt: string; // ISO timestamp when ingested
   parsedDate: string; // YYYY-MM-DD

@@ -68,6 +68,11 @@ import {
   learnFromUserSmsReview,
   applySmsRejectionLearning,
 } from '../lib/smsEngine';
+import {
+  filterUniqueUnsyncedMessages,
+  commitSyncedSmsBatch,
+  getStoredLastSmsSyncTimestamp,
+} from '../lib/smsSyncRegistry';
 import { generateCentralizedNotifications } from '../lib/notificationEngine';
 import { executeTransactionReversal } from '../lib/reversalEngine';
 import { detectFinancialAnomalies } from '../lib/anomalyDetector';
@@ -3004,8 +3009,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    const batchRes = processIncomingSmsBatchOnDevice({
+    // Filter out messages that were already extracted/synced in any previous sync
+    const { uniqueMessages, alreadySyncedCount } = filterUniqueUnsyncedMessages(
       messages,
+      transactionsRef.current,
+      smsStagingQueueRef.current
+    );
+
+    if (uniqueMessages.length === 0) {
+      return {
+        committedCount: 0,
+        stagedCount: 0,
+        droppedNoiseCount: 0,
+        duplicateCount: alreadySyncedCount,
+        blacklistedCount: 0,
+      };
+    }
+
+    const batchRes = processIncomingSmsBatchOnDevice({
+      messages: uniqueMessages,
       holdings: holdingsRef.current,
       liabilities: liabilitiesRef.current,
       transactions: transactionsRef.current,
@@ -3015,6 +3037,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       defaultCurrency: settings.baseCurrency || 'INR',
       autoCommit,
     });
+
+    // Atomically commit the newly extracted messages into the persistent on-device sync registry
+    commitSyncedSmsBatch(uniqueMessages);
 
     await dbStorage.runAcidTransaction([
       { storeName: 'holdings', mode: 'setAll', items: batchRes.updatedHoldings },
@@ -3032,7 +3057,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       committedCount: batchRes.newlyCommittedTransactions.length,
       stagedCount: batchRes.newlyStagedItems.length,
       droppedNoiseCount: batchRes.droppedNoiseCount,
-      duplicateCount: batchRes.discardedDuplicateCount,
+      duplicateCount: batchRes.discardedDuplicateCount + alreadySyncedCount,
       blacklistedCount: batchRes.blacklistedCount,
     };
   };
@@ -3056,7 +3081,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    const sinceMs = Date.now() - 30 * 24 * 60 * 60 * 1000; // last 30 days on-device scan
+    const lastSyncedMs = getStoredLastSmsSyncTimestamp();
+    // High-water mark cursor: query strictly from lastSyncedMs + 1 (or 30-day fallback on initial sync)
+    const sinceMs = lastSyncedMs > 0 ? Math.max(0, lastSyncedMs + 1) : Date.now() - 30 * 24 * 60 * 60 * 1000;
     const inbox = await readOnDeviceSmsInbox({ limit: 150, sinceTimestampMs: sinceMs });
     setSmsPermissionStatus(inbox.status);
 
@@ -3417,19 +3444,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await dbStorage.delete('sms_rule_overrides', ruleId);
   };
 
-  // Subscribe to live incoming SMS broadcasts on Android when initialized
-  useEffect(() => {
-    if (!isInitialized) return;
-    let unsubscribe: (() => void) | null = null;
-    subscribeToIncomingSms((msg) => {
-      ingestSmsMessages([msg], true);
-    }).then((unsub) => {
-      unsubscribe = unsub;
-    });
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [isInitialized]);
 
   const reverseTransaction = async (
     id: string,

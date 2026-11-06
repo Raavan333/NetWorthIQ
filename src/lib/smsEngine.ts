@@ -22,6 +22,7 @@ import {
 import { suggestCategoryFromDescription } from './categorySuggester';
 import { roundCurrency, createProvenance } from './financialMath';
 import { executeTransactionReversal, ReversalResult } from './reversalEngine';
+import { computeSmsFingerprint } from './smsSyncRegistry';
 
 export const SMS_STRICT_DUPLICATE_WINDOW_MINUTES = 5;
 export const SMS_STRICT_DUPLICATE_WINDOW_MS = SMS_STRICT_DUPLICATE_WINDOW_MINUTES * 60 * 1000;
@@ -1726,6 +1727,9 @@ export function findSmsDuplicateWithinWindow(
     merchantName: string;
     refId?: string;
     direction: 'debit' | 'credit';
+    rawSms?: string;
+    rawSmsFingerprint?: string;
+    deviceMessageId?: string;
   },
   existingTransactions: Transaction[],
   existingStagingQueue: StagedSmsItem[] = [],
@@ -1734,17 +1738,18 @@ export function findSmsDuplicateWithinWindow(
   const strictWindowMs = Math.max(1, windowMinutes) * 60 * 1000;
   const candTimeMs = new Date(candidate.parsedTimestampIso).getTime();
   const candAlias = normalizeMerchantAlias(candidate.merchantName);
+  const candRawClean = (candidate.rawSms || '').trim();
 
   // 1. Check main ledger transactions
   for (const tx of existingTransactions) {
     if (tx.isReversed) continue;
 
+    // Cross-sync check A: Identical globally unique bank reference ID
     if (
       candidate.refId &&
       candidate.refId.length >= 5 &&
       tx.smsMetadata?.refId &&
-      tx.smsMetadata.refId === candidate.refId &&
-      Math.abs(tx.amount - candidate.amount) < 0.01
+      tx.smsMetadata.refId.toLowerCase() === candidate.refId.toLowerCase()
     ) {
       return {
         isDuplicate: true,
@@ -1753,11 +1758,59 @@ export function findSmsDuplicateWithinWindow(
       };
     }
 
+    // Cross-sync check B: Identical raw SMS message text
+    if (
+      candRawClean &&
+      tx.smsMetadata?.rawSms &&
+      tx.smsMetadata.rawSms.trim() === candRawClean
+    ) {
+      return {
+        isDuplicate: true,
+        duplicateTxId: tx.id,
+        reason: `Identical SMS message body already recorded in transaction ${tx.id}.`,
+      };
+    }
+
+    // Cross-sync check C: Identical canonical SMS fingerprint
+    if (
+      candidate.rawSmsFingerprint &&
+      tx.smsMetadata?.rawSmsFingerprint &&
+      tx.smsMetadata.rawSmsFingerprint === candidate.rawSmsFingerprint
+    ) {
+      return {
+        isDuplicate: true,
+        duplicateTxId: tx.id,
+        reason: `Identical SMS fingerprint already recorded in transaction ${tx.id}.`,
+      };
+    }
+
     if (Math.abs(tx.amount - candidate.amount) >= 0.01) continue;
 
     const txSource = candidate.direction === 'debit' ? tx.fromId || tx.sourceId : tx.toId;
     if (candidate.matchedSourceId && txSource && candidate.matchedSourceId !== txSource) {
       continue;
+    }
+
+    // If both transactions have distinct, different reference IDs, they are distinct real spends
+    const hasDifferentRefId = Boolean(
+      candidate.refId &&
+        tx.smsMetadata?.refId &&
+        candidate.refId.toLowerCase() !== tx.smsMetadata.refId.toLowerCase()
+    );
+    if (hasDifferentRefId) {
+      continue;
+    }
+
+    // Cross-sync check D: Exact same calendar date, account, amount, and merchant name
+    if (candidate.parsedDate === tx.date) {
+      const txAlias = normalizeMerchantAlias(tx.smsMetadata?.merchantName || tx.reason);
+      if (candAlias && txAlias && candAlias === txAlias) {
+        return {
+          isDuplicate: true,
+          duplicateTxId: tx.id,
+          reason: `Transaction of ${candidate.amount} on ${candidate.parsedDate} already recorded in ledger (${tx.id}).`,
+        };
+      }
     }
 
     const txTimeStr = tx.createdAt || `${tx.date}T12:00:00.000Z`;
@@ -1787,6 +1840,47 @@ export function findSmsDuplicateWithinWindow(
   // 2. Check active staged items
   for (const staged of existingStagingQueue) {
     if (staged.status !== 'staged' && staged.status !== 'committed') continue;
+
+    // Cross-sync staging check A: Identical bank reference ID
+    if (
+      candidate.refId &&
+      candidate.refId.length >= 5 &&
+      staged.refId &&
+      staged.refId.toLowerCase() === candidate.refId.toLowerCase()
+    ) {
+      return {
+        isDuplicate: true,
+        duplicateTxId: staged.committedTxId || staged.id,
+        reason: `Identical reference ID (${candidate.refId}) already in staging queue.`,
+      };
+    }
+
+    // Cross-sync staging check B: Identical raw SMS message text
+    if (
+      candRawClean &&
+      staged.rawSms &&
+      staged.rawSms.trim() === candRawClean
+    ) {
+      return {
+        isDuplicate: true,
+        duplicateTxId: staged.committedTxId || staged.id,
+        reason: `Identical SMS message body already in staging queue (${staged.id}).`,
+      };
+    }
+
+    // Cross-sync staging check C: Identical canonical SMS fingerprint
+    if (
+      candidate.rawSmsFingerprint &&
+      staged.rawSmsFingerprint &&
+      staged.rawSmsFingerprint === candidate.rawSmsFingerprint
+    ) {
+      return {
+        isDuplicate: true,
+        duplicateTxId: staged.committedTxId || staged.id,
+        reason: `Identical SMS fingerprint already in staging queue (${staged.id}).`,
+      };
+    }
+
     if (Math.abs(staged.amount - candidate.amount) >= 0.01) continue;
     if (
       candidate.matchedSourceId &&
@@ -1796,16 +1890,13 @@ export function findSmsDuplicateWithinWindow(
       continue;
     }
 
-    if (
+    const hasDifferentRefId = Boolean(
       candidate.refId &&
-      candidate.refId.length >= 5 &&
-      staged.refId === candidate.refId
-    ) {
-      return {
-        isDuplicate: true,
-        duplicateTxId: staged.committedTxId || staged.id,
-        reason: `Identical reference ID (${candidate.refId}) already in staging queue.`,
-      };
+        staged.refId &&
+        candidate.refId.toLowerCase() !== staged.refId.toLowerCase()
+    );
+    if (hasDifferentRefId) {
+      continue;
     }
 
     const stagedMs = new Date(staged.parsedTimestampIso).getTime();
@@ -1894,6 +1985,9 @@ export function buildLedgerTransactionFromStagedSms(
       accountLastDigits: staged.accountLastDigits,
       refId: staged.refId,
       reportedBalance: staged.reportedBalance,
+      rawSms: staged.rawSms,
+      rawSmsFingerprint: staged.rawSmsFingerprint,
+      deviceMessageId: staged.deviceMessageId,
     },
     provenance: createProvenance('imported', 'On-device SMS parser & RL router'),
   };
@@ -2029,7 +2123,9 @@ export function processIncomingSmsBatchOnDevice(params: {
       roundCurrency(parsed.baseConfidence + confidenceBoost + (fromLearnedOverride ? 0.08 : 0))
     );
 
-    // Strict 5-minute duplicate guard
+    const rawSmsFingerprint = computeSmsFingerprint(msg);
+
+    // Strict duplicate guard (cross-sync refId, rawSms text, fingerprint, and timing checks)
     const dupCheck = findSmsDuplicateWithinWindow(
       {
         amount: parsed.amount,
@@ -2039,6 +2135,9 @@ export function processIncomingSmsBatchOnDevice(params: {
         merchantName: resolvedReason,
         refId: parsed.refId,
         direction: parsed.direction,
+        rawSms: parsed.rawSms,
+        rawSmsFingerprint,
+        deviceMessageId: msg.id,
       },
       workingTransactions,
       workingStaging,
@@ -2049,7 +2148,9 @@ export function processIncomingSmsBatchOnDevice(params: {
       discardedDuplicateCount++;
       const dupItem: StagedSmsItem = {
         id: stagingId,
+        deviceMessageId: msg.id,
         rawSms: parsed.rawSms,
+        rawSmsFingerprint,
         sender: parsed.sender,
         receivedAt: receivedIso,
         parsedDate: parsed.parsedDate,
@@ -2141,7 +2242,9 @@ export function processIncomingSmsBatchOnDevice(params: {
 
     const stagedItem: StagedSmsItem = {
       id: stagingId,
+      deviceMessageId: msg.id,
       rawSms: parsed.rawSms,
+      rawSmsFingerprint,
       sender: parsed.sender,
       receivedAt: receivedIso,
       parsedDate: parsed.parsedDate,

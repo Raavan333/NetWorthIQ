@@ -26,8 +26,17 @@ import {
   learnCategoryOverrideFromMerchant,
   learnFromUserSmsReview,
   scoreTrailingDigitsMatch,
+  findSmsDuplicateWithinWindow,
 } from '../src/lib/smsEngine';
 import { splitManualPastedSmsBatch } from '../src/lib/smsBridge';
+import {
+  computeSmsFingerprint,
+  filterUniqueUnsyncedMessages,
+  commitSyncedSmsBatch,
+  loadSyncedSmsRegistry,
+  getStoredLastSmsSyncTimestamp,
+  saveSyncedSmsRegistry,
+} from '../src/lib/smsSyncRegistry';
 import { hashPinArgon2id, checkLockout, registerFailedAttempt, resetLockout } from '../src/lib/securityArgon2';
 import { suggestCategoryFromDescription } from '../src/lib/categorySuggester';
 import { AGGRESSIVENESS_ORDER, AGGRESSIVENESS_SPECS } from '../src/lib/subconsciousNudges';
@@ -1797,6 +1806,143 @@ Call 18002586161/SMS BLOCK CC 3230 to 7308080808`;
   assert(
     updatedAnitaBank.principalOrValue === 22000,
     'Anita bank account holds both loan repayment + surplus deposit (10,000 + 10,000 + 2,000 = 22,000)'
+  );
+
+  // [Suite 22: Persistent SMS Sync Cursor, Unique Extraction & Multi-Sync Deduplication]
+  console.log('\n[Suite 22: Persistent SMS Sync Cursor, Unique Extraction & Multi-Sync Deduplication]');
+
+  // Initialize clean registry state for unit test execution
+  saveSyncedSmsRegistry({
+    lastSyncedTimestampMs: 0,
+    syncedMessageIds: [],
+    syncedFingerprints: [],
+  });
+
+  const smsA = {
+    id: 'msg-device-101',
+    sender: 'VM-HDFCBK',
+    body: 'Txn Rs.52.00 On HDFC Bank Card 3230 At paytm-8774066@ptybl by UPI 173332464899 On 15-07',
+    timestampMs: new Date('2026-07-15T14:30:00Z').getTime(),
+  };
+
+  const smsB = {
+    id: 'msg-device-102',
+    sender: 'VM-CANBNK',
+    body: 'A/c XX913 Cr INR 54.90 on 03/11/26 from INNOFINSOLUT; IMPS: 630702890694; Bal INR 13,403.67-CanaraBank',
+    timestampMs: new Date('2026-11-03T10:00:00Z').getTime(),
+  };
+
+  const smsC = {
+    id: 'msg-device-103',
+    sender: 'VM-HDFCBK',
+    body: 'DEAR HDFCBANK CARDMEMBER, PAYMENT OF Rs. 14690.00 RECEIVED TOWARDS YOUR CREDIT CARD ENDING WITH 6382 ON 3-10-2026.YOUR AVAILABLE LIMIT IS RS. 21376.00',
+    timestampMs: new Date('2026-10-03T09:00:00Z').getTime(),
+  };
+
+  // 1. Canonical Fingerprint Determinism
+  const fp1 = computeSmsFingerprint(smsA);
+  const fp1Duplicate = computeSmsFingerprint({
+    id: 'distinct-id-same-content',
+    sender: 'vm-hdfcbk',
+    body: '  Txn  Rs.52.00   On HDFC Bank Card 3230 At paytm-8774066@ptybl by UPI 173332464899 On 15-07  ',
+    timestampMs: smsA.timestampMs,
+  });
+  assert(fp1 === fp1Duplicate, 'computeSmsFingerprint is deterministic and normalizes whitespace and casing');
+
+  // 2. Sync Run #1: Both SMS A and SMS B are brand new and must be extracted
+  const sync1 = filterUniqueUnsyncedMessages([smsA, smsB], [], []);
+  assert(sync1.uniqueMessages.length === 2, 'Sync 1: Extracts exactly 2 unique messages on initial sync');
+  assert(sync1.alreadySyncedCount === 0, 'Sync 1: 0 already-synced messages skipped');
+
+  // Commit Sync Run #1 to simulate persistent registry update
+  commitSyncedSmsBatch(sync1.uniqueMessages);
+  const registryAfterSync1 = loadSyncedSmsRegistry();
+  assert(
+    registryAfterSync1.syncedMessageIds.includes('msg-device-101') &&
+      registryAfterSync1.syncedMessageIds.includes('msg-device-102'),
+    'Persistent registry stores message IDs of extracted SMS'
+  );
+  assert(
+    registryAfterSync1.lastSyncedTimestampMs >= smsB.timestampMs,
+    'Sync cursor high-water mark advances to latest message timestamp'
+  );
+
+  // 3. Sync Run #2: Inbox contains SMS A, SMS B (already synced) plus a new SMS C
+  // Sync MUST extract ONLY SMS C and NEVER re-fetch A or B!
+  const sync2 = filterUniqueUnsyncedMessages([smsA, smsB, smsC], [], []);
+  assert(sync2.uniqueMessages.length === 1, 'Sync 2: Extracts ONLY 1 unique new message (SMS C)');
+  assert(sync2.uniqueMessages[0].id === 'msg-device-103', 'Sync 2: Extracted message is strictly the new SMS C');
+  assert(sync2.alreadySyncedCount === 2, 'Sync 2: Discarded both previously synced SMS A and SMS B');
+
+  // Commit Sync Run #2
+  commitSyncedSmsBatch(sync2.uniqueMessages);
+
+  // 4. Sync Run #3: Device inbox contains all 3 previously synced messages (A, B, C)
+  // Sync MUST extract 0 messages and skip all 3
+  const sync3 = filterUniqueUnsyncedMessages([smsA, smsB, smsC], [], []);
+  assert(sync3.uniqueMessages.length === 0, 'Sync 3: Extracts 0 messages when no new messages exist in inbox');
+  assert(sync3.alreadySyncedCount === 3, 'Sync 3: Skips all 3 already-synced messages without re-fetching');
+
+  // 5. Intra-batch duplicate protection: single sync containing duplicate copies of an SMS extracts only 1
+  const smsD = {
+    id: 'msg-batch-dup-1',
+    sender: 'VM-TEST',
+    body: 'Rs 250.00 debited from A/c XX1234 on 05-Nov-26 to Groceries.',
+    timestampMs: Date.now(),
+  };
+  const smsDCopy = {
+    id: 'msg-batch-dup-2',
+    sender: 'VM-TEST',
+    body: 'Rs 250.00 debited from A/c XX1234 on 05-Nov-26 to Groceries.',
+    timestampMs: Date.now(),
+  };
+  const intraBatchSync = filterUniqueUnsyncedMessages([smsD, smsDCopy], [], []);
+  assert(intraBatchSync.uniqueMessages.length === 1, 'Intra-batch deduplication: extracts only 1 unique message from duplicate batch inputs');
+  assert(intraBatchSync.alreadySyncedCount === 1, 'Intra-batch duplicate dropped accurately');
+
+  // 6. Cross-Sync Ledger Duplicate Guard: Even if messages arrive with synthetic IDs,
+  // findSmsDuplicateWithinWindow recognizes global refId and rawSms matches across syncs!
+  const existingLedgerTx: Transaction = {
+    id: 'tx-existing-1',
+    date: '2026-07-15',
+    createdAt: '2026-07-15T14:30:00.000Z',
+    kind: 'spend',
+    amount: 52,
+    currency: 'INR',
+    fromId: 'hold-card-3230',
+    reason: 'paytm-8774066@ptybl',
+    category: 'Food & Dining',
+    fxRateUsed: 1.0,
+    smsMetadata: {
+      stagingId: 'sms-stage-1',
+      patternSignature: 'sig-1',
+      merchantName: 'paytm-8774066@ptybl',
+      refId: '173332464899',
+      rawSms: smsA.body,
+      rawSmsFingerprint: fp1,
+    },
+  };
+
+  // Re-syncing SMS A days later must trigger global refId & rawSms duplicate drop
+  const crossSyncCheck = findSmsDuplicateWithinWindow(
+    {
+      amount: 52,
+      parsedTimestampIso: '2026-07-15T14:30:00.000Z',
+      parsedDate: '2026-07-15',
+      matchedSourceId: 'hold-card-3230',
+      merchantName: 'paytm-8774066@ptybl',
+      refId: '173332464899',
+      direction: 'debit',
+      rawSms: smsA.body,
+      rawSmsFingerprint: fp1,
+    },
+    [existingLedgerTx],
+    []
+  );
+  assert(crossSyncCheck.isDuplicate === true, 'Cross-sync duplicate guard blocks already-recorded transaction by bank refId');
+  assert(
+    crossSyncCheck.reason?.includes('173332464899'),
+    'Duplicate reason correctly identifies existing reference ID'
   );
 
   console.log(`\n========================================`);
