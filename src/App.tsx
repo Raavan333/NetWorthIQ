@@ -22,6 +22,7 @@ import { NeedsAttentionPanel } from './components/home/NeedsAttentionPanel';
 import { GoalReadyNotificationModal } from './components/goals/GoalReadyNotificationModal';
 import { NotificationCenterModal } from './components/common/NotificationCenterModal';
 import { ReceiveMoneyModal } from './components/common/ReceiveMoneyModal';
+import { HumanCapitalSkillCard } from './components/assets/HumanCapitalSkillCard';
 
 const MainLayout: React.FC = () => {
   const {
@@ -236,6 +237,20 @@ const MainLayout: React.FC = () => {
           maxWidth="max-w-3xl"
         >
           <TaxView />
+        </Modal>
+      )}
+
+      {activeModal === 'career' && (
+        <Modal
+          isOpen={true}
+          onClose={() => setActiveModal(null)}
+          title="Career & Human Capital Asset"
+          subtitle="Lifetime earning power, skill gap analysis, and compensation progression roadmap"
+          maxWidth="max-w-4xl"
+        >
+          <div className="max-h-[82vh] overflow-y-auto pr-1">
+            <HumanCapitalSkillCard />
+          </div>
         </Modal>
       )}
 

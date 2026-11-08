@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { InsightCardData, InsightType } from '../../types';
 import { formatMoney, formatCompactMoney } from '../../lib/formatters';
 import { MLInvestmentAllocationEngine } from './MLInvestmentAllocationEngine';
+import { HumanCapitalSkillCard } from '../assets/HumanCapitalSkillCard';
 import { ENGAGEMENT_STRATEGY_LABELS } from '../../lib/mlEngine';
 import {
   Lightbulb,
@@ -19,6 +20,7 @@ import {
   Zap,
   Check,
   Bell,
+  GraduationCap,
 } from 'lucide-react';
 
 export const InsightsView: React.FC = () => {
@@ -90,6 +92,14 @@ export const InsightsView: React.FC = () => {
             Cashflow analysis, allocation recommendations, and tax planning
           </p>
         </div>
+        <button
+          onClick={() => setActiveModal('career')}
+          className="px-3 py-1.5 rounded-xl bg-purple-950/60 border border-purple-800/60 hover:bg-purple-900/60 text-purple-300 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm transition-colors"
+          title="Open Career & Human Skill Valuation Hub"
+        >
+          <GraduationCap size={15} className="text-purple-400" />
+          <span>Career & Skill Valuation</span>
+        </button>
       </div>
 
       {/* RL Flash Feedback Message */}
@@ -99,6 +109,11 @@ export const InsightsView: React.FC = () => {
           <span>{rlSuccessMessage}</span>
         </div>
       )}
+
+      {/* Career Progression, Human Skill & Lifetime Valuation Engine */}
+      <div className="pt-1">
+        <HumanCapitalSkillCard />
+      </div>
 
       {/* ML Excess Cash Flow, Safe Buffer & Market Cap Allocation Engine */}
       <MLInvestmentAllocationEngine />

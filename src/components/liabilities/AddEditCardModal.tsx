@@ -146,6 +146,10 @@ export const AddEditCardModal: React.FC<AddEditCardModalProps> = ({
         setError('Incomplete Liability: Cool-off period / grace days must be at least 1 day.');
         return;
       }
+      if (cDays > 365) {
+        setError('Incomplete Liability: Cool-off period / grace days cannot exceed 365 days.');
+        return;
+      }
       const penalty = parseFloat(penaltyMonthlyPct);
       if (isNaN(penalty) || penalty <= 0) {
         setError('Incomplete Liability: Overdue penalty interest rate must be greater than 0% monthly.');
@@ -504,8 +508,8 @@ export const AddEditCardModal: React.FC<AddEditCardModalProps> = ({
                   <input
                     type="number"
                     min="1"
-                    max="60"
-                    placeholder="e.g. 20"
+                    max="365"
+                    placeholder="e.g. 20 (up to 365 days)"
                     value={coolOffDays}
                     onChange={(e) => {
                       setCoolOffDays(e.target.value);
@@ -514,7 +518,7 @@ export const AddEditCardModal: React.FC<AddEditCardModalProps> = ({
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:border-indigo-400 focus:outline-none"
                     required
                   />
-                  <span className="text-[10px] text-slate-500">Days allowed to pay after statement (default: 20)</span>
+                  <span className="text-[10px] text-slate-500">Days allowed to pay after statement (1–365 days, default: 20)</span>
                 </div>
               </div>
 

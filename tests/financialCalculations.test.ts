@@ -41,7 +41,7 @@ import { hashPinArgon2id, checkLockout, registerFailedAttempt, resetLockout } fr
 import { suggestCategoryFromDescription } from '../src/lib/categorySuggester';
 import { AGGRESSIVENESS_ORDER, AGGRESSIVENESS_SPECS } from '../src/lib/subconsciousNudges';
 import { detectObligationConflicts, generateCentralizedNotifications } from '../src/lib/notificationEngine';
-import { calculateFinancialEngine } from '../src/lib/calcEngine';
+import { calculateFinancialEngine, evaluateCreditCard, getLiveTickerValue } from '../src/lib/calcEngine';
 import { exportMasterCsv, parseMasterCsv } from '../src/lib/csvHelper';
 import { Holding, Liability, Bill, IncomeStream, Receivable, Currency, AppSettings, Transaction, CareerProfile, SpendCategoryConfig, Goal, ScheduledTransfer, RLMovementRecommendation, SmsRuleOverride } from '../src/types';
 import { DEFAULT_SETTINGS, DEFAULT_CURRENCIES, DEFAULT_SPEND_CATEGORIES, BUILT_IN_ASSET_TYPES } from '../src/lib/defaults';
@@ -1943,6 +1943,114 @@ Call 18002586161/SMS BLOCK CC 3230 to 7308080808`;
   assert(
     crossSyncCheck.reason?.includes('173332464899'),
     'Duplicate reason correctly identifies existing reference ID'
+  );
+
+  // =========================================================================
+  // Suite 23: Extended Credit Card Cool-Off (up to 365d), Background Compounding & Career Asset
+  // =========================================================================
+  console.log(`\n[Suite 23: Extended Credit Card Cool-Off (up to 365d), Background Compounding & Career Asset]`);
+
+  // Test 23A: Extended Cool-Off Periods (90, 180, and 365 days)
+  const extendedCoolOffCard: Liability = {
+    id: 'card-extended-90d',
+    name: 'Intro 0% Promotional Card',
+    kind: 'card',
+    cardType: 'credit',
+    currency: 'INR',
+    outstanding: 45000,
+    statementDay: 1,
+    coolOffDays: 90, // Extended 90-day grace period
+    penaltyMonthlyPct: 3.5,
+  };
+
+  const currMap: Record<string, Currency> = {};
+  for (const c of DEFAULT_CURRENCIES) currMap[c.code] = c;
+
+  // Evaluated on 15th of the month (14 days after statement on day 1)
+  const evalDateMidMonth = new Date(2026, 10, 15); // Nov 15, 2026
+  const evalState90 = evaluateCreditCard(extendedCoolOffCard, evalDateMidMonth, DEFAULT_SETTINGS, currMap);
+
+  assert(
+    evalState90.coolOffDays === 90,
+    'Extended cool-off period of 90 days is respected in credit card evaluation'
+  );
+  assert(
+    evalState90.daysRemaining > 60,
+    `Card with 90-day cool-off retains ${evalState90.daysRemaining} days remaining (not capped at 60)`
+  );
+  assert(
+    evalState90.status !== 'Overdue',
+    'Card with 90-day grace is not marked overdue after 14 days'
+  );
+
+  // Test 365-day promotional cool-off
+  const promoCard365: Liability = {
+    id: 'card-promo-365d',
+    name: '1-Year 0% APR Financing Card',
+    kind: 'card',
+    cardType: 'credit',
+    currency: 'INR',
+    outstanding: 120000,
+    statementDay: 1,
+    coolOffDays: 365, // Full 365-day cool-off
+    penaltyMonthlyPct: 3.0,
+  };
+  const evalState365 = evaluateCreditCard(promoCard365, evalDateMidMonth, DEFAULT_SETTINGS, currMap);
+  assert(
+    evalState365.coolOffDays === 365 && evalState365.daysRemaining > 300,
+    `Card with 365-day cool-off correctly evaluates with ${evalState365.daysRemaining} days remaining`
+  );
+
+  // Test 23B: 24/7 Continuous Background Net Worth Accrual Calculation
+  const anchorNetWorth = 2500000; // 25 Lakhs INR
+  const yearlyPace = 315360; // Exactly 0.01 INR per second (315360 / 31536000)
+  
+  // Simulated background duration: 3600 seconds (1 hour away in background)
+  const tickerAfter1Hour = getLiveTickerValue(anchorNetWorth, yearlyPace, 3600);
+  const expected1Hour = anchorNetWorth + (yearlyPace / 31536000) * 3600; // +36 INR
+  assert(
+    Math.abs(tickerAfter1Hour - expected1Hour) < 0.0001 && tickerAfter1Hour === 2500036,
+    `Continuous ticker after 1 hour in background calculates exact accrued compounding: ${tickerAfter1Hour}`
+  );
+
+  // Simulated background duration: 86400 seconds (24 hours full day away)
+  const tickerAfter24Hours = getLiveTickerValue(anchorNetWorth, yearlyPace, 86400);
+  const expected24Hours = anchorNetWorth + (yearlyPace / 31536000) * 86400; // +864 INR
+  assert(
+    Math.abs(tickerAfter24Hours - expected24Hours) < 0.0001 && tickerAfter24Hours === 2500864,
+    `Continuous ticker after 24 hours in background accrues exact net worth compounding without drift: ${tickerAfter24Hours}`
+  );
+
+  // Test 23C: Career Progression & Human Capital Lifetime Valuation Model
+  const profile: CareerProfile = {
+    currentRole: 'Senior Full Stack Engineer',
+    yearsOfExperience: 6,
+    education: 'bachelors_tech',
+    educationalMajor: 'Computer Science',
+    industry: 'Technology & SaaS',
+    targetCompanyType: 'all',
+    salaryExpectation: 3500000,
+    technicalSkills: ['React', 'TypeScript', 'Node.js', 'System Design', 'PostgreSQL'],
+    behavioralStrengths: ['Mentorship', 'Ownership', 'Cross-functional Collaboration'],
+    weaknessesOrGrowthAreas: ['Executive Communication'],
+  };
+
+  const careerResult = predictCareerAndSalary(profile, 2800000, 2500000);
+  assert(
+    careerResult.humanCapitalNpv5Yr > 0 && careerResult.humanCapitalNpv10Yr > careerResult.humanCapitalNpv5Yr,
+    `Career Human Capital 5-Yr NPV (${careerResult.humanCapitalNpv5Yr}) and 10-Yr NPV (${careerResult.humanCapitalNpv10Yr}) correctly computed`
+  );
+  assert(
+    careerResult.predictedCurrentMarketMedian > 0,
+    `Career model predicts market median salary: ${careerResult.predictedCurrentMarketMedian}`
+  );
+  assert(
+    Array.isArray(careerResult.skillGaps) && careerResult.skillGaps.length >= 0,
+    'Career model generates actionable skill gap analysis'
+  );
+  assert(
+    careerResult.mncPrediction.expectedSalary > 0 && careerResult.startupPrediction.expectedSalary > 0,
+    'Career model generates dual MNC vs Startup predictive career paths'
   );
 
   console.log(`\n========================================`);

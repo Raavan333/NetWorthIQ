@@ -305,6 +305,10 @@ export const PinLockScreen: React.FC = () => {
           <p className="text-[11px] text-slate-400 tracking-wider uppercase font-medium mt-0.5">
             Encrypted Offline Vault
           </p>
+          <div className="flex items-center gap-1.5 mt-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono text-emerald-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Compounding Active 24/7 · Background Live</span>
+          </div>
         </header>
 
         {/* Passcode Instruction */}

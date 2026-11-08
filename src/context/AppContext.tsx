@@ -752,6 +752,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return calculateTaxEngine(sales, taxRules);
   }, [sales, taxRules]);
 
+  // Periodic time pulse so time-based accruals (peer interest, loan days, credit card cycles) update continuously
+  const [clockTick, setClockTick] = useState<number>(Date.now());
+
   // Financial Engine Calculation
   const engineResult = useMemo<EngineCalculationResult>(() => {
     return calculateFinancialEngine(
@@ -763,10 +766,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       currencies,
       settings,
       taxResult.totalEstimatedTaxOwedBase,
-      new Date(),
+      new Date(clockTick),
       receivables
     );
-  }, [holdings, assetTypes, liabilities, incomeStreams, transactions, currencies, settings, taxResult, receivables]);
+  }, [holdings, assetTypes, liabilities, incomeStreams, transactions, currencies, settings, taxResult, receivables, clockTick]);
 
   // Credit Score Online ML Prediction
   const creditPrediction = useMemo<CreditScorePrediction>(() => {
@@ -1360,62 +1363,156 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [engineResult.netWorthBase, engineResult.finalRateAmountPerYear]);
 
+  // Track exact timestamp when the user leaves the foreground
+  const backgroundEnteredAtRef = useRef<number | null>(null);
+
   useEffect(() => {
-    if (settings.reduceMotion) {
-      setTickerValue(baselineRef.current.baseNetWorth);
-      return;
+    // 1. Inline Web Worker for continuous 24/7 background timer heartbeat
+    // Dedicated Web Workers continue executing periodic ticks even when backgrounded.
+    let worker: Worker | null = null;
+    try {
+      const workerBlobCode = `
+        let timer = null;
+        self.onmessage = function(e) {
+          if (e.data === 'start') {
+            if (!timer) {
+              timer = setInterval(function() {
+                self.postMessage({ type: 'tick', timestamp: Date.now() });
+              }, 50);
+            }
+          } else if (e.data === 'stop') {
+            if (timer) clearInterval(timer);
+            timer = null;
+          }
+        };
+      `;
+      const blob = new Blob([workerBlobCode], { type: 'application/javascript' });
+      const workerUrl = URL.createObjectURL(blob);
+      worker = new Worker(workerUrl);
+      worker.onmessage = (e) => {
+        if (e.data && e.data.type === 'tick') {
+          handleTick(e.data.timestamp);
+        }
+      };
+      worker.postMessage('start');
+    } catch {
+      // Fallback if Web Workers are restricted in security context
     }
 
-    // High precision calculation ticker interval (updates every 50ms)
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const secondsElapsed = (now - baselineRef.current.timestamp) / 1000;
+    // 2. High-precision calculation ticker updater (updates every 50ms)
+    const handleTick = (now: number = Date.now()) => {
+      if (settings.reduceMotion) {
+        setTickerValue(baselineRef.current.baseNetWorth);
+        return;
+      }
+      const secondsElapsed = Math.max(0, (now - baselineRef.current.timestamp) / 1000);
       const current = baselineRef.current.baseNetWorth + baselineRef.current.perSecond * secondsElapsed;
       setTickerValue(current);
+    };
+
+    const mainInterval = setInterval(() => {
+      handleTick(Date.now());
     }, 50);
 
-    // Continuous heartbeat sync: persists lastActiveTimestamp so closing app preserves exact state
+    // 3. Heartbeat storage sync: persists lastActiveTimestamp so closing app preserves exact state
     const persistInterval = setInterval(() => {
+      const now = Date.now();
       try {
         const raw = localStorage.getItem(CONTINUOUS_ENGINE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
-          parsed.lastActiveTimestamp = Date.now();
+          parsed.lastActiveTimestamp = now;
           parsed.ratePerSecond = baselineRef.current.perSecond;
           localStorage.setItem(CONTINUOUS_ENGINE_KEY, JSON.stringify(parsed));
         }
       } catch {}
     }, 1000);
 
-    // Save immediately on beforeunload and window visibility change
-    const handleSync = () => {
-      try {
-        const raw = localStorage.getItem(CONTINUOUS_ENGINE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          parsed.lastActiveTimestamp = Date.now();
-          parsed.ratePerSecond = baselineRef.current.perSecond;
-          localStorage.setItem(CONTINUOUS_ENGINE_KEY, JSON.stringify(parsed));
-        }
-      } catch {}
+    // 4. Minute-level financial engine pulse for time-based advances (peer interest, loan days, credit card cycles)
+    const clockInterval = setInterval(() => {
+      setClockTick(Date.now());
+    }, 30000);
 
-      if (document.visibilityState === 'visible') {
-        // Tab brought back into view: instantly calculate elapsed figures
-        const now = Date.now();
-        const secondsElapsed = (now - baselineRef.current.timestamp) / 1000;
-        const current = baselineRef.current.baseNetWorth + baselineRef.current.perSecond * secondsElapsed;
-        setTickerValue(current);
+    // 5. Seamless Background & Foreground Synchronization
+    const handleVisibilityOrResume = () => {
+      const now = Date.now();
+      if (document.visibilityState === 'hidden') {
+        // App is entering background, screen turning off, or tab switching
+        backgroundEnteredAtRef.current = now;
+        try {
+          const raw = localStorage.getItem(CONTINUOUS_ENGINE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            parsed.lastActiveTimestamp = now;
+            parsed.ratePerSecond = baselineRef.current.perSecond;
+            localStorage.setItem(CONTINUOUS_ENGINE_KEY, JSON.stringify(parsed));
+          }
+        } catch {}
+      } else {
+        // App restored to foreground: calculate exact elapsed time & accrued wealth
+        let lastKnownActive = backgroundEnteredAtRef.current;
+        if (!lastKnownActive) {
+          try {
+            const raw = localStorage.getItem(CONTINUOUS_ENGINE_KEY);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed.lastActiveTimestamp) {
+                lastKnownActive = parsed.lastActiveTimestamp;
+              }
+            }
+          } catch {}
+        }
+        const effectiveLastActive = lastKnownActive || now;
+        const closedSeconds = Math.max(0, (now - effectiveLastActive) / 1000);
+        const accruedClosed = baselineRef.current.perSecond * closedSeconds;
+        const totalElapsed = Math.max(0, (now - baselineRef.current.timestamp) / 1000);
+        const totalAccrued = baselineRef.current.perSecond * totalElapsed;
+        const currentCompounded = baselineRef.current.baseNetWorth + totalAccrued;
+
+        setTickerValue(currentCompounded);
+        setContinuousEngineStats({
+          isActive: true,
+          totalAccrued,
+          accruedWhileClosed: accruedClosed,
+          closedDurationSeconds: closedSeconds,
+          lastActiveTimestamp: effectiveLastActive,
+        });
+
+        // Reset background ref & trigger fresh engine calculation pulse
+        backgroundEnteredAtRef.current = null;
+        setClockTick(now);
+
+        try {
+          const raw = localStorage.getItem(CONTINUOUS_ENGINE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            parsed.lastActiveTimestamp = now;
+            parsed.ratePerSecond = baselineRef.current.perSecond;
+            localStorage.setItem(CONTINUOUS_ENGINE_KEY, JSON.stringify(parsed));
+          }
+        } catch {}
       }
     };
 
-    window.addEventListener('beforeunload', handleSync);
-    document.addEventListener('visibilitychange', handleSync);
+    window.addEventListener('beforeunload', handleVisibilityOrResume);
+    document.addEventListener('visibilitychange', handleVisibilityOrResume);
+    window.addEventListener('focus', handleVisibilityOrResume);
+    window.addEventListener('pageshow', handleVisibilityOrResume);
+    window.addEventListener('resume', handleVisibilityOrResume);
 
     return () => {
-      clearInterval(interval);
+      if (worker) {
+        worker.postMessage('stop');
+        worker.terminate();
+      }
+      clearInterval(mainInterval);
       clearInterval(persistInterval);
-      window.removeEventListener('beforeunload', handleSync);
-      document.removeEventListener('visibilitychange', handleSync);
+      clearInterval(clockInterval);
+      window.removeEventListener('beforeunload', handleVisibilityOrResume);
+      document.removeEventListener('visibilitychange', handleVisibilityOrResume);
+      window.removeEventListener('focus', handleVisibilityOrResume);
+      window.removeEventListener('pageshow', handleVisibilityOrResume);
+      window.removeEventListener('resume', handleVisibilityOrResume);
     };
   }, [settings.reduceMotion]);
 

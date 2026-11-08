@@ -7,7 +7,7 @@ import { Modal } from '../common/Modal';
 import { calculateFinalRate } from '../../lib/calcEngine';
 
 export const HeroCards: React.FC = () => {
-  const { engineResult, settings, currencies, setActiveTab, careerPrediction } = useApp();
+  const { engineResult, settings, currencies, setActiveTab, setActiveModal, careerPrediction } = useApp();
 
   const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
 
@@ -77,7 +77,14 @@ export const HeroCards: React.FC = () => {
           </div>
 
           {/* Human Capital Link */}
-          <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-cyan-400 font-medium group-hover:text-cyan-300">
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveModal('career');
+            }}
+            className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-cyan-400 font-medium group-hover:text-cyan-300 hover:text-cyan-200 cursor-pointer"
+            title="View Career & Human Capital Lifetime Asset Valuation"
+          >
             <span className="flex items-center gap-1 truncate">
               <GraduationCap size={13} className="shrink-0" />
               Skill Earning Power: {formatCompactMoney(engineResult.salaryYearlyIncomeBase, baseCurr, currSym)}/yr

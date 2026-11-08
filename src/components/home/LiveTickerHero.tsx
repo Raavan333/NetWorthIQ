@@ -13,8 +13,8 @@ export const LiveTickerHero: React.FC = () => {
 
   const showAwayAccrual =
     continuousEngineStats &&
-    continuousEngineStats.closedDurationSeconds >= 10 &&
-    Math.abs(continuousEngineStats.accruedWhileClosed) > 0.001;
+    continuousEngineStats.closedDurationSeconds >= 2 &&
+    Math.abs(continuousEngineStats.accruedWhileClosed) > 0.0001;
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 p-4 sm:p-5">

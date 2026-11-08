@@ -15,6 +15,7 @@ import {
   Palette,
   Lock,
   LogOut,
+  GraduationCap,
 } from 'lucide-react';
 
 export const TopHeader: React.FC = () => {
@@ -126,6 +127,14 @@ export const TopHeader: React.FC = () => {
               <span>Income</span>
             </button>
             <button
+              onClick={() => setActiveModal('career')}
+              className="p-2 rounded-xl text-slate-400 hover:text-cyan-300 hover:bg-slate-800 transition-colors flex items-center gap-1.5 text-xs font-medium cursor-pointer"
+              title="Career & Human Skill Asset"
+            >
+              <GraduationCap size={16} className="text-cyan-400" />
+              <span>Career</span>
+            </button>
+            <button
               onClick={() => setActiveModal('tax')}
               className="p-2 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors flex items-center gap-1.5 text-xs font-medium cursor-pointer"
               title="Tax Module"
@@ -220,6 +229,16 @@ export const TopHeader: React.FC = () => {
                   >
                     <Briefcase size={17} className="text-cyan-400" />
                     <span>Income & Salary</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setActiveModal('career');
+                    }}
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer text-left"
+                  >
+                    <GraduationCap size={17} className="text-purple-400" />
+                    <span>Career & Human Capital</span>
                   </button>
                   <button
                     onClick={() => {

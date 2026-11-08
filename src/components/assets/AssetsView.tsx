@@ -13,6 +13,7 @@ import { ReceivablesManager } from './ReceivablesManager';
 import { ReconciliationAuditModal } from '../common/ReconciliationAuditModal';
 import { PayLoanModal } from '../liabilities/PayLoanModal';
 import { Modal } from '../common/Modal';
+import { HumanCapitalSkillCard } from './HumanCapitalSkillCard';
 import {
   Plus,
   TableProperties,
@@ -28,6 +29,7 @@ import {
   Zap,
   Building2,
   ShieldCheck,
+  GraduationCap,
 } from 'lucide-react';
 
 export const AssetsView: React.FC = () => {
@@ -148,6 +150,19 @@ export const AssetsView: React.FC = () => {
             <ShieldCheck size={14} className="text-indigo-400" />
             <span className="hidden sm:inline">Audit Ledger</span>
             <span className="sm:hidden">Audit</span>
+          </button>
+
+          <button
+            onClick={() => {
+              const el = document.getElementById('human-capital-section');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="flex-1 sm:flex-none px-2.5 py-2 rounded-xl bg-purple-950/40 border border-purple-800/50 hover:bg-purple-900/40 text-xs font-semibold text-purple-300 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+            title="Jump to Human Capital Lifetime Skill Valuation & Career Progression"
+          >
+            <GraduationCap size={14} className="text-purple-400" />
+            <span className="hidden sm:inline">Skill Asset</span>
+            <span className="sm:hidden">Skills</span>
           </button>
 
           <button
@@ -494,6 +509,11 @@ export const AssetsView: React.FC = () => {
           <Plus size={16} />
           <span>+ Add New Asset</span>
         </button>
+      </div>
+
+      {/* Human Capital & Lifetime Skill Asset Valuation (Intangible Earning Asset) */}
+      <div id="human-capital-section" className="pt-4 border-t border-slate-800/80">
+        <HumanCapitalSkillCard />
       </div>
 
       {/* Modals */}
