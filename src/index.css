@@ -124,3 +124,54 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.4);
 }
+
+/* Tactile Haptic-Like Visual Feedback for Button Interactions */
+button:not(:disabled):not([aria-disabled="true"]):not(.no-haptic),
+[role="button"]:not([aria-disabled="true"]):not(.no-haptic),
+a.btn,
+.btn-press {
+  position: relative;
+  transition: transform 0.12s cubic-bezier(0.2, 0.8, 0.2, 1),
+              filter 0.12s cubic-bezier(0.2, 0.8, 0.2, 1),
+              box-shadow 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+button:not(:disabled):not([aria-disabled="true"]):not(.no-haptic):active,
+[role="button"]:not([aria-disabled="true"]):not(.no-haptic):active,
+a.btn:active,
+.btn-press:active {
+  transform: scale(0.97) translateY(0.5px);
+  filter: brightness(0.93) contrast(1.02);
+}
+
+/* Subtle tighter compression for compact icon/circle buttons */
+button.rounded-full:not(:disabled):not([aria-disabled="true"]):not(.no-haptic):active,
+button.w-7:not(:disabled):active,
+button.w-8:not(:disabled):active,
+button.w-9:not(:disabled):active {
+  transform: scale(0.94) translateY(0.5px);
+}
+
+/* Exclude tiny slider indicators and switch knobs from scaling */
+button[role="switch"],
+button.h-1\.5,
+button.h-1,
+button.h-2,
+.no-haptic,
+.no-haptic:active {
+  transform: none !important;
+  filter: none !important;
+}
+
+/* Reduced motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled):active,
+  [role="button"]:not([aria-disabled="true"]):active,
+  .btn-press:active {
+    transform: none !important;
+    filter: brightness(0.92);
+  }
+}

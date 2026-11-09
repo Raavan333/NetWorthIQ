@@ -46,6 +46,29 @@ const MainLayout: React.FC = () => {
     }
   }, [isLocked]);
 
+  // Subtle tactile haptic micro-feedback on button press (when device supports vibration)
+  useEffect(() => {
+    const handlePointerDown = (e: PointerEvent) => {
+      const target = (e.target as HTMLElement)?.closest('button, [role="button"]');
+      if (
+        target &&
+        !target.hasAttribute('disabled') &&
+        target.getAttribute('aria-disabled') !== 'true' &&
+        !target.classList.contains('no-haptic')
+      ) {
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+          try {
+            navigator.vibrate(6); // Crisp 6ms micro-tap
+          } catch {
+            // ignore
+          }
+        }
+      }
+    };
+    window.addEventListener('pointerdown', handlePointerDown, { passive: true });
+    return () => window.removeEventListener('pointerdown', handlePointerDown);
+  }, []);
+
   // 1. Screen Turn-Off / Device Lock / App Background Auto-Logout
   useEffect(() => {
     const isSecurityActive = settings.pinLockEnabled !== false;
