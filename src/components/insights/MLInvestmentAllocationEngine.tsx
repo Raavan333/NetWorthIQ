@@ -425,7 +425,7 @@ export const MLInvestmentAllocationEngine: React.FC = () => {
                 <ShieldAlert size={16} className="text-amber-400 shrink-0" />
                 <span>ML Behavioral Guard: Virtual Bill Override Penalty Active ({modelWeights.virtualOverrideCount}x)</span>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono font-bold">
+              <span className="text-[11px] text-amber-300 font-mono font-bold">
                 +{formatMoney(modelWeights.virtualOverridePenaltyBuffer || 0, baseCurr, currSym)} Extra Reserve Buffer
               </span>
             </div>
@@ -496,13 +496,13 @@ export const MLInvestmentAllocationEngine: React.FC = () => {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-1.5">
                         {isDebt ? (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1">
-                            <Flame size={12} className="text-rose-400" />
+                          <span className="text-xs font-bold text-rose-300 flex items-center gap-1.5">
+                            <Flame size={13} className="text-rose-400" />
                             High Priority Debt Payoff
                           </span>
                         ) : (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1">
-                            <TrendingUp size={12} className="text-cyan-400" />
+                          <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                            <TrendingUp size={13} className="text-cyan-400" />
                             Market Cap Optimization
                           </span>
                         )}

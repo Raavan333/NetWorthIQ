@@ -647,13 +647,16 @@ export const SpendHistory: React.FC = () => {
                           <span className="font-semibold text-white truncate text-sm">
                             {item.merchantName || 'SMS Transaction'}
                           </span>
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-300">
+                          <span className="text-[11px] text-slate-400">
                             {item.matchedCategory || 'General'}
                           </span>
                           {item.accountLastDigits && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-cyan-950/60 border border-cyan-800/40 text-cyan-300">
-                              ··{item.accountLastDigits}
-                            </span>
+                            <>
+                              <span className="text-slate-600">·</span>
+                              <span className="text-[11px] font-mono text-cyan-400">
+                                ··{item.accountLastDigits}
+                              </span>
+                            </>
                           )}
                         </div>
 
@@ -1111,30 +1114,36 @@ export const SpendHistory: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => startEditingCategory(t)}
-                            className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
+                            className="text-slate-400 hover:text-emerald-300 text-[11px] font-medium transition-colors cursor-pointer"
                             title="Click to edit category"
                           >
                             {t.category || 'General'}
                           </button>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-500">
+                          <span className="text-slate-500 text-[11px] font-medium">
                             {t.category || 'General'}
                           </span>
                         )}
 
                         {isSmsCaptured && !t.isReversed && (
-                          <span
-                            className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
-                            title="Automatically captured from on-device SMS"
-                          >
-                            SMS
-                          </span>
+                          <>
+                            <span className="text-slate-600">·</span>
+                            <span
+                              className="text-[11px] font-medium text-emerald-400/90 font-mono"
+                              title="Automatically captured from on-device SMS"
+                            >
+                              SMS
+                            </span>
+                          </>
                         )}
 
                         {t.isReversed && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                            Reversed
-                          </span>
+                          <>
+                            <span className="text-slate-600">·</span>
+                            <span className="text-[11px] font-medium text-rose-400 font-mono">
+                              Reversed
+                            </span>
+                          </>
                         )}
                       </div>
 

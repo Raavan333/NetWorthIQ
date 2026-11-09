@@ -241,18 +241,8 @@ export const PinLockScreen: React.FC = () => {
     }
   };
 
-  // Dial keypad keys
-  const keypadKeys = [
-    { num: '1', letters: '' },
-    { num: '2', letters: 'ABC' },
-    { num: '3', letters: 'DEF' },
-    { num: '4', letters: 'GHI' },
-    { num: '5', letters: 'JKL' },
-    { num: '6', letters: 'MNO' },
-    { num: '7', letters: 'PQRS' },
-    { num: '8', letters: 'TUV' },
-    { num: '9', letters: 'WXYZ' },
-  ];
+  // Dial keypad keys (purely numeric - alphabetic characters removed)
+  const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#070b14] text-slate-100 select-none overflow-y-auto px-4 py-3 sm:py-8 min-h-[100dvh]">
@@ -378,25 +368,18 @@ export const PinLockScreen: React.FC = () => {
 
         {/* Fluid Tactile 3x4 Dial Keypad */}
         <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full">
-          {keypadKeys.map(({ num, letters }) => (
+          {keypadKeys.map((num) => (
             <button
               key={num}
               type="button"
               onClick={() => handleDigit(num)}
               disabled={status !== 'idle'}
-              className="min-h-[48px] h-[clamp(50px,7.8dvh,64px)] rounded-2xl bg-slate-900/90 hover:bg-slate-800/90 active:bg-emerald-500/25 active:border-emerald-400 active:scale-95 border border-slate-800/90 hover:border-slate-700 flex flex-col items-center justify-center transition-all duration-100 cursor-pointer shadow-md shadow-black/40 disabled:opacity-40 select-none group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              className="min-h-[48px] h-[clamp(50px,7.8dvh,64px)] rounded-2xl bg-slate-900/90 hover:bg-slate-800/90 active:bg-emerald-500/25 active:border-emerald-400 active:scale-95 border border-slate-800/90 hover:border-slate-700 flex items-center justify-center transition-all duration-100 cursor-pointer shadow-md shadow-black/40 disabled:opacity-40 select-none group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               aria-label={`Digit ${num}`}
             >
               <span className="text-xl sm:text-2xl font-bold tabular-nums text-slate-100 leading-none group-active:text-emerald-300">
                 {num}
               </span>
-              {letters ? (
-                <span className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase mt-1 leading-none">
-                  {letters}
-                </span>
-              ) : (
-                <span className="h-[10px] mt-1" />
-              )}
             </button>
           ))}
 
@@ -433,7 +416,7 @@ export const PinLockScreen: React.FC = () => {
             type="button"
             onClick={() => handleDigit('0')}
             disabled={status !== 'idle'}
-            className="min-h-[48px] h-[clamp(50px,7.8dvh,64px)] rounded-2xl bg-slate-900/90 hover:bg-slate-800/90 active:bg-emerald-500/25 active:border-emerald-400 active:scale-95 border border-slate-800/90 hover:border-slate-700 flex flex-col items-center justify-center transition-all duration-100 cursor-pointer shadow-md shadow-black/40 disabled:opacity-40 select-none group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            className="min-h-[48px] h-[clamp(50px,7.8dvh,64px)] rounded-2xl bg-slate-900/90 hover:bg-slate-800/90 active:bg-emerald-500/25 active:border-emerald-400 active:scale-95 border border-slate-800/90 hover:border-slate-700 flex items-center justify-center transition-all duration-100 cursor-pointer shadow-md shadow-black/40 disabled:opacity-40 select-none group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
             aria-label="Digit 0"
           >
             <span className="text-xl sm:text-2xl font-bold tabular-nums text-slate-100 leading-none group-active:text-emerald-300">
@@ -484,7 +467,7 @@ export const PinLockScreen: React.FC = () => {
               type="text"
               placeholder="Type RESET"
               value={resetConfirmWord}
-              onChange={(e) => setResetConfirmWord(e.target.value)}
+              onChange={(e) => setResetConfirmWord(e.target.value.toUpperCase())}
               className="w-full bg-slate-950 border border-slate-700 focus:border-rose-500 focus:outline-none rounded-xl px-3 py-2 text-sm text-white font-mono uppercase mb-4"
               autoFocus
             />

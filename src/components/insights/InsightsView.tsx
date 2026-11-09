@@ -4,6 +4,7 @@ import { InsightCardData, InsightType } from '../../types';
 import { formatMoney, formatCompactMoney } from '../../lib/formatters';
 import { MLInvestmentAllocationEngine } from './MLInvestmentAllocationEngine';
 import { HumanCapitalSkillCard } from '../assets/HumanCapitalSkillCard';
+import { HistoricalNetWorthChart } from './HistoricalNetWorthChart';
 import { ENGAGEMENT_STRATEGY_LABELS } from '../../lib/mlEngine';
 import {
   Lightbulb,
@@ -109,6 +110,9 @@ export const InsightsView: React.FC = () => {
           <span>{rlSuccessMessage}</span>
         </div>
       )}
+
+      {/* Historical Net Worth Growth Trend Line Chart */}
+      <HistoricalNetWorthChart />
 
       {/* Career Progression, Human Skill & Lifetime Valuation Engine */}
       <div className="pt-1">

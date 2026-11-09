@@ -17,6 +17,8 @@ import {
   Feather,
   SlidersHorizontal,
   X,
+  TrendingUp,
+  Zap,
 } from 'lucide-react';
 
 export const SubconsciousNudge: React.FC = () => {
@@ -146,6 +148,56 @@ export const SubconsciousNudge: React.FC = () => {
     });
   };
 
+  // Psychological archetype and color accents tailored to tone
+  const toneConfig = {
+    celebrate: {
+      accentBorder: 'border-emerald-500/40 hover:border-emerald-500/60',
+      glowGradient: 'from-emerald-500/15 via-emerald-950/20 to-transparent',
+      topBar: 'bg-gradient-to-r from-emerald-500/80 via-teal-400/80 to-transparent',
+      badgeText: 'text-emerald-400',
+      badgeBg: 'bg-emerald-500/10',
+      pulseColor: 'bg-emerald-400',
+      psychologicalAnchor: 'VICTORY MOMENTUM · DOPAMINE ANCHOR',
+      icon: Sparkles,
+      buttonBg: 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/50',
+    },
+    protect: {
+      accentBorder: 'border-cyan-500/40 hover:border-cyan-500/60',
+      glowGradient: 'from-cyan-500/15 via-cyan-950/20 to-transparent',
+      topBar: 'bg-gradient-to-r from-cyan-500/80 via-blue-400/80 to-transparent',
+      badgeText: 'text-cyan-400',
+      badgeBg: 'bg-cyan-500/10',
+      pulseColor: 'bg-cyan-400',
+      psychologicalAnchor: 'WEALTH DEFENSE · LOSS AVERSION SHIELD',
+      icon: ShieldCheck,
+      buttonBg: 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-950/50',
+    },
+    mindful: {
+      accentBorder: 'border-amber-500/40 hover:border-amber-500/60',
+      glowGradient: 'from-amber-500/15 via-amber-950/20 to-transparent',
+      topBar: 'bg-gradient-to-r from-amber-500/80 via-orange-400/80 to-transparent',
+      badgeText: 'text-amber-400',
+      badgeBg: 'bg-amber-500/10',
+      pulseColor: 'bg-amber-400',
+      psychologicalAnchor: 'MINDFUL EQUILIBRIUM · HABIT COMPOUNDING',
+      icon: Zap,
+      buttonBg: 'bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold shadow-amber-950/50',
+    },
+    compound: {
+      accentBorder: 'border-indigo-500/40 hover:border-indigo-500/60',
+      glowGradient: 'from-indigo-500/15 via-purple-950/20 to-transparent',
+      topBar: 'bg-gradient-to-r from-indigo-500/80 via-purple-400/80 to-transparent',
+      badgeText: 'text-indigo-400',
+      badgeBg: 'bg-indigo-500/10',
+      pulseColor: 'bg-indigo-400',
+      psychologicalAnchor: 'FREEDOM VELOCITY · COMPOUND GRAVITY',
+      icon: TrendingUp,
+      buttonBg: 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-950/50',
+    },
+  }[current.tone || 'compound'];
+
+  const ToneIcon = toneConfig.icon;
+
   return (
     <section
       aria-label="Subconscious Financial Guidance"
@@ -153,58 +205,119 @@ export const SubconsciousNudge: React.FC = () => {
       onMouseLeave={() => setIsPausedByHover(false)}
       onFocus={() => setIsPausedByHover(true)}
       onBlur={() => setIsPausedByHover(false)}
-      className="relative overflow-hidden rounded-2xl bg-[#070b14] border border-slate-800/90 p-4 shadow-[0_12px_36px_-16px_rgba(16,185,129,0.22)] transition-all"
+      className={`relative overflow-hidden rounded-2xl bg-gradient-to-b from-slate-900/95 to-slate-950/95 border ${toneConfig.accentBorder} p-4 sm:p-5 shadow-[0_16px_40px_-16px_rgba(0,0,0,0.65)] backdrop-blur-md transition-all duration-300`}
     >
-      {/* Subtle atmospheric radial sheen */}
+      {/* Top ambient illumination hairline */}
+      <div className={`absolute top-0 left-0 right-0 h-[2px] ${toneConfig.topBar}`} />
+
+      {/* Atmospheric radial sheen */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(16,185,129,0.09),rgba(99,102,241,0.04)_45%,transparent_72%)]"
+        className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${toneConfig.glowGradient} opacity-60`}
       />
 
-      <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
-        <div className="space-y-1.5 min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-slate-400 font-semibold">
-            {current.tone === 'celebrate' ? (
-              <CheckCircle2 size={12} className="text-emerald-400 shrink-0" />
-            ) : current.tone === 'protect' ? (
-              <ShieldCheck size={12} className="text-cyan-400 shrink-0" />
-            ) : current.tone === 'mindful' ? (
-              <Feather size={12} className="text-amber-400 shrink-0" />
-            ) : (
-              <Compass size={12} className="text-indigo-400 shrink-0" />
-            )}
-            <span>Subconscious Nudge</span>
+      <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Main Content Area */}
+        <div className="space-y-2 min-w-0 flex-1">
+          {/* Subconscious Psychological Anchor Header */}
+          <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-wider font-semibold text-slate-400">
+            <span className="flex items-center gap-1.5 font-bold tracking-widest text-slate-300">
+              <span className={`w-2 h-2 rounded-full ${toneConfig.pulseColor} animate-pulse`} />
+              <span>{toneConfig.psychologicalAnchor}</span>
+            </span>
             <span aria-hidden="true" className="text-slate-600">·</span>
-            <span className="text-emerald-400/90">{current.tag}</span>
+            <span className={`font-mono ${toneConfig.badgeText}`}>{current.tag}</span>
+            {isPausedByHover && (
+              <>
+                <span aria-hidden="true" className="text-slate-600">·</span>
+                <span className="text-slate-400 text-[9px] font-mono">Paused</span>
+              </>
+            )}
           </div>
 
-          <h3 className="text-sm font-semibold text-slate-100 tracking-tight leading-snug">
-            {current.headline}
+          {/* Inspiring Headline */}
+          <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-snug flex items-center gap-2">
+            <ToneIcon size={16} className={`${toneConfig.badgeText} shrink-0`} />
+            <span className="break-words">{current.headline}</span>
           </h3>
 
-          <p className="text-xs text-slate-400 leading-relaxed max-w-3xl">
+          {/* Persuasive Behavioral Psychological Body */}
+          <p className="text-xs sm:text-[13px] text-slate-300 leading-relaxed max-w-3xl font-normal">
             {current.body}
           </p>
         </div>
 
-        <div className="flex sm:flex-col items-center sm:items-end justify-between gap-2.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/80">
-          <div className="flex items-center gap-2 sm:justify-end w-full sm:w-auto justify-between">
-            <div className="sm:text-right">
-              <span className="block text-[10px] uppercase tracking-wider text-slate-500">
-                {current.metricLabel}
-              </span>
-              <span className="text-base font-bold font-mono tabular-nums text-emerald-400">
-                {current.metricValue}
-              </span>
+        {/* Right Metric & Interactive Actions Area */}
+        <div className="flex flex-col sm:flex-row md:flex-col items-start sm:items-center md:items-end justify-between gap-3 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-slate-800/80">
+          {/* Key Metric Display Tile */}
+          <div className="p-2.5 sm:px-3 sm:py-2 rounded-xl bg-slate-950/80 border border-slate-800/80 text-left sm:text-right w-full sm:w-auto md:w-full">
+            <span className="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
+              {current.metricLabel}
+            </span>
+            <div className={`text-lg sm:text-xl font-black font-mono tabular-nums ${toneConfig.badgeText}`}>
+              {current.metricValue}
             </div>
+          </div>
 
-            <div className="flex items-center gap-1">
+          {/* Carousel Stepper & Action Controls */}
+          <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+            {/* Step Indicators */}
+            {whispers.length > 1 && (
+              <div className="flex items-center gap-1 mr-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActiveIndex((prev) => (prev - 1 + whispers.length) % whispers.length)
+                  }
+                  aria-label="Previous guidance whisper"
+                  className="w-7 h-7 rounded-lg bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200 flex items-center justify-center cursor-pointer transition-colors"
+                >
+                  <ChevronLeft size={13} />
+                </button>
+                <div className="flex items-center gap-1 px-1">
+                  {whispers.map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setActiveIndex(i)}
+                      aria-label={`Go to nudge ${i + 1}`}
+                      className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                        safeIdx === i
+                          ? `w-4 ${toneConfig.pulseColor}`
+                          : 'w-1.5 bg-slate-700 hover:bg-slate-600'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveIndex((prev) => (prev + 1) % whispers.length)}
+                  aria-label="Next guidance whisper"
+                  className="w-7 h-7 rounded-lg bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200 flex items-center justify-center cursor-pointer transition-colors"
+                >
+                  <ChevronRight size={13} />
+                </button>
+              </div>
+            )}
+
+            {/* Motivational Action CTA */}
+            <button
+              type="button"
+              onClick={handleAction}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-md active:scale-95 whitespace-nowrap ${toneConfig.buttonBg}`}
+            >
+              <span>{current.actionLabel}</span>
+              <ArrowUpRight size={14} className="shrink-0" />
+            </button>
+
+            {/* Preference & Dismiss controls */}
+            <div className="flex items-center gap-1 ml-1">
               <button
                 type="button"
                 onClick={() => setActiveModal('settings:nudges')}
                 aria-label="Configure Subconscious Nudge Preferences"
                 title="Subconscious Nudge Preferences"
-                className="w-7 h-7 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 flex items-center justify-center cursor-pointer transition-colors"
+                className="w-7 h-7 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700 flex items-center justify-center cursor-pointer transition-colors"
               >
                 <SlidersHorizontal size={12} />
               </button>
@@ -212,50 +325,12 @@ export const SubconsciousNudge: React.FC = () => {
                 type="button"
                 onClick={handleDismiss}
                 aria-label="Rest nudges for configured quiet window"
-                title={`Rest for ${SUBCONSCIOUS_FREQUENCY_SPECS[prefs.frequency].cooldownHours}h`}
-                className="w-7 h-7 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 flex items-center justify-center cursor-pointer transition-colors"
+                title={`Quiet window for ${SUBCONSCIOUS_FREQUENCY_SPECS[prefs.frequency]?.cooldownHours || 4}h`}
+                className="w-7 h-7 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700 flex items-center justify-center cursor-pointer transition-colors"
               >
                 <X size={12} />
               </button>
             </div>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            {whispers.length > 1 && (
-              <div className="flex items-center gap-0.5 mr-1">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setActiveIndex((prev) => (prev - 1 + whispers.length) % whispers.length)
-                  }
-                  aria-label="Previous guidance insight"
-                  className="w-6 h-6 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 flex items-center justify-center cursor-pointer transition-colors"
-                >
-                  <ChevronLeft size={12} />
-                </button>
-                <span className="text-[10px] font-mono tabular-nums text-slate-500 px-1">
-                  {safeIdx + 1}/{whispers.length}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setActiveIndex((prev) => (prev + 1) % whispers.length)}
-                  aria-label="Next guidance insight"
-                  className="w-6 h-6 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 flex items-center justify-center cursor-pointer transition-colors"
-                >
-                  <ChevronRight size={12} />
-                </button>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={handleAction}
-              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-emerald-950/60 border border-slate-700/90 hover:border-emerald-500/50 text-slate-100 hover:text-emerald-200 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all whitespace-nowrap"
-            >
-              <Sparkles size={12} className="text-emerald-400 shrink-0" />
-              <span>{current.actionLabel}</span>
-              <ArrowUpRight size={12} className="text-slate-400 shrink-0" />
-            </button>
           </div>
         </div>
       </div>

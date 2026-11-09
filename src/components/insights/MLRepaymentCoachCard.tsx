@@ -83,12 +83,13 @@ export const MLRepaymentCoachCard: React.FC = () => {
               <h3 className="text-sm font-bold text-white tracking-wide">
                 Adaptive ML Debt Repayment Coach
               </h3>
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+              <span className="text-slate-600">·</span>
+              <span className={`text-[11px] font-semibold ${
                 coachingIntervention.level >= 5
-                  ? 'bg-rose-950/60 text-rose-300 border-rose-800/60'
+                  ? 'text-rose-400'
                   : coachingIntervention.level >= 3
-                  ? 'bg-amber-950/60 text-amber-300 border-amber-800/60'
-                  : 'bg-indigo-950/60 text-indigo-300 border-indigo-800/60'
+                  ? 'text-amber-400'
+                  : 'text-indigo-400'
               }`}>
                 {coachingIntervention.levelName}
               </span>

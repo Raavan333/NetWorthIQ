@@ -153,6 +153,8 @@ export const LiabilitiesView: React.FC = () => {
         </div>
       </div>
 
+      {/* Debt Payoff Intelligence: Avalanche vs Snowball vs Minimum - Displayed at Top */}
+      <DebtStrategyCard onPayDebt={(loan) => setSelectedLoanForPay(loan)} />
 
       {/* Overall Credit Utilization Monitoring Card */}
       {(creditCards.length > 0 || hybridCards.length > 0) && (() => {
@@ -919,9 +921,6 @@ export const LiabilitiesView: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Debt Payoff Intelligence: Avalanche vs Snowball vs Minimum */}
-      <DebtStrategyCard onPayDebt={(loan) => setSelectedLoanForPay(loan)} />
 
       {/* Loans & Mortgages Section */}
       <div className="space-y-3 pt-2">

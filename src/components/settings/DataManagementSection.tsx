@@ -1568,14 +1568,15 @@ export const DataManagementSection: React.FC = () => {
 
             <div>
               <label className="block text-[11px] text-slate-400 mb-1">
-                Type <strong className="text-rose-400 font-mono">WIPE</strong> to confirm:
+                Type <strong className="text-rose-400 font-mono">RESET</strong> to confirm:
               </label>
               <input
                 type="text"
                 value={wipeConfirmText}
-                onChange={(e) => setWipeConfirmText(e.target.value)}
-                placeholder="WIPE"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 font-mono"
+                onChange={(e) => setWipeConfirmText(e.target.value.toUpperCase())}
+                placeholder="RESET"
+                autoFocus
+                className="w-full bg-slate-950 border border-slate-800 focus:border-rose-500 focus:outline-none rounded-xl px-3 py-2 text-sm text-slate-200 font-mono uppercase"
               />
             </div>
 
@@ -1590,7 +1591,7 @@ export const DataManagementSection: React.FC = () => {
                 Cancel
               </button>
               <button
-                disabled={wipeConfirmText !== 'WIPE'}
+                disabled={wipeConfirmText.trim().toUpperCase() !== 'RESET'}
                 onClick={async () => {
                   await wipeAllData();
                   setShowWipeDialog(false);
