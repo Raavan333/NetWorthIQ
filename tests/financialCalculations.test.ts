@@ -27,6 +27,9 @@ import {
   learnFromUserSmsReview,
   scoreTrailingDigitsMatch,
   findSmsDuplicateWithinWindow,
+  extractDigitsList,
+  cleanAccountDigitsInput,
+  formatLastDigitsDisplay,
 } from '../src/lib/smsEngine';
 import { splitManualPastedSmsBatch } from '../src/lib/smsBridge';
 import {
@@ -2051,6 +2054,214 @@ Call 18002586161/SMS BLOCK CC 3230 to 7308080808`;
   assert(
     careerResult.mncPrediction.expectedSalary > 0 && careerResult.startupPrediction.expectedSalary > 0,
     'Career model generates dual MNC vs Startup predictive career paths'
+  );
+
+  // [Suite 24: Multi-Digit Account & Card Allocation (Physical Visa + Virtual Wrapper / Online Spends)]
+  console.log('\n[Suite 24: Multi-Digit Account & Card Allocation & SMS Parsing Routing]');
+
+  // 1. Digit Normalization & Helper Formatting
+  assert(
+    cleanAccountDigitsInput('3230, 6382') === '3230, 6382',
+    'cleanAccountDigitsInput preserves valid comma-separated multiple last 4 digits'
+  );
+  assert(
+    cleanAccountDigitsInput('3230 6382') === '3230, 6382',
+    'cleanAccountDigitsInput normalizes space-separated digits into comma-separated list'
+  );
+  assert(
+    cleanAccountDigitsInput('3230/6382') === '3230, 6382',
+    'cleanAccountDigitsInput normalizes slash-separated digits into comma-separated list'
+  );
+  assert(
+    cleanAccountDigitsInput('  3230 , 6382 , 3230  ') === '3230, 6382',
+    'cleanAccountDigitsInput trims whitespace and deduplicates numbers'
+  );
+  assert(
+    cleanAccountDigitsInput('3230') === '3230',
+    'cleanAccountDigitsInput cleanly handles single account number'
+  );
+
+  const extractedList = extractDigitsList('3230, 6382');
+  assert(
+    extractedList.length === 2 && extractedList[0] === '3230' && extractedList[1] === '6382',
+    'extractDigitsList extracts distinct digit tokens from multi-number allocation string'
+  );
+
+  const formattedDisplay = formatLastDigitsDisplay('3230, 6382');
+  assert(
+    formattedDisplay === '··3230, ··6382',
+    'formatLastDigitsDisplay formats multiple numbers elegantly as "··3230, ··6382"'
+  );
+
+  // 2. Trailing Digits Scoring across Multi-Number Allocation
+  const scorePhysical = scoreTrailingDigitsMatch('3230', '3230, 6382');
+  assert(
+    scorePhysical === 100,
+    `Physical card SMS (3230) matches dual-number card (3230, 6382) with score 100 (got ${scorePhysical})`
+  );
+
+  const scoreVirtual = scoreTrailingDigitsMatch('6382', '3230, 6382');
+  assert(
+    scoreVirtual === 100,
+    `Virtual wrapper SMS (6382) matches dual-number card (3230, 6382) with score 100 (got ${scoreVirtual})`
+  );
+
+  const scoreSuffix = scoreTrailingDigitsMatch('382', '3230, 6382', true);
+  assert(
+    scoreSuffix >= 90,
+    `Suffix match (382) matches dual-number card (3230, 6382) with score >= 90 (got ${scoreSuffix})`
+  );
+
+  const scoreMismatch = scoreTrailingDigitsMatch('9999', '3230, 6382');
+  assert(
+    scoreMismatch === 0,
+    'Unrelated account digits (9999) score 0 against dual-number card'
+  );
+
+  // 3. Dual-Number Credit Card SMS Parsing (Physical Visa + Virtual Wrapper / UPI Spend)
+  // Single card without tags: physical Visa ends with 3230, virtual wrapper for online spends ends with 6382
+  const dualCardHdfc: Liability = {
+    id: 'card-hdfc-millennia-dual',
+    name: 'HDFC Millennia Credit Card',
+    kind: 'card',
+    cardType: 'credit',
+    currency: 'INR',
+    outstanding: 2500,
+    ratePct: 42,
+    limit: 150000,
+    accountLastDigits: '3230, 6382',
+  };
+
+  const primarySalaryBank: Holding = {
+    id: 'hold-primary-bank',
+    typeId: 'type-bank',
+    name: 'Primary Salary Bank Account',
+    currency: 'INR',
+    principalOrValue: 50000,
+    liquidityClass: 'Immediate',
+    accountLastDigits: '4913, 913',
+  };
+
+  // SMS 1: In-store physical card swipe with digits 3230
+  const physicalSmsText =
+    'Txn of INR 350.00 on HDFC Bank Card 3230 at STARBUCKS on 04-Nov-26. Avl Lmt: 147150.00';
+  const parsedPhysical = parseFinancialSms(physicalSmsText, 'VM-HDFCBK', '2026-11-04T10:00:00Z');
+  assert(parsedPhysical !== null, 'Physical card SMS parses successfully');
+  assert(parsedPhysical!.accountLastDigits === '3230', 'Extracted accountLastDigits 3230 from physical swipe SMS');
+
+  const batchPhysicalResult = processIncomingSmsBatchOnDevice({
+    messages: [
+      {
+        id: 'msg-phys-1',
+        sender: 'VM-HDFCBK',
+        body: physicalSmsText,
+        timestampMs: new Date('2026-11-04T10:00:00Z').getTime(),
+      },
+    ],
+    holdings: [primarySalaryBank],
+    liabilities: [dualCardHdfc],
+    transactions: [],
+    stagingQueue: [],
+    ruleOverrides: [],
+    autoCommit: false,
+  });
+
+  assert(
+    batchPhysicalResult.newlyStagedItems.length === 1,
+    'Physical swipe SMS is placed in temporary review queue'
+  );
+  assert(
+    batchPhysicalResult.newlyStagedItems[0].matchedSourceId === 'card-hdfc-millennia-dual',
+    'Physical swipe SMS (3230) successfully routes to dualCardHdfc'
+  );
+
+  // SMS 2: Online wrapper / virtual card token spend with digits 6382
+  const virtualWrapperSmsText =
+    'Txn of INR 1,299.00 on your Card ending with 6382 for Amazon online purchase on 04-Nov-26. Avl Lmt: 145851.00';
+  const parsedVirtual = parseFinancialSms(virtualWrapperSmsText, 'VM-HDFCBK', '2026-11-04T12:00:00Z');
+  assert(parsedVirtual !== null, 'Virtual wrapper SMS parses successfully');
+  assert(parsedVirtual!.accountLastDigits === '6382', 'Extracted accountLastDigits 6382 from virtual wrapper SMS');
+
+  const batchVirtualResult = processIncomingSmsBatchOnDevice({
+    messages: [
+      {
+        id: 'msg-virt-1',
+        sender: 'VM-HDFCBK',
+        body: virtualWrapperSmsText,
+        timestampMs: new Date('2026-11-04T12:00:00Z').getTime(),
+      },
+    ],
+    holdings: [primarySalaryBank],
+    liabilities: [dualCardHdfc],
+    transactions: [],
+    stagingQueue: [],
+    ruleOverrides: [],
+    autoCommit: false,
+  });
+
+  assert(
+    batchVirtualResult.newlyStagedItems.length === 1,
+    'Virtual wrapper SMS is placed in temporary review queue'
+  );
+  assert(
+    batchVirtualResult.newlyStagedItems[0].matchedSourceId === 'card-hdfc-millennia-dual',
+    'Virtual wrapper SMS (6382) ALSO routes to the exact same dualCardHdfc without separate tags'
+  );
+
+  // SMS 3: Bank account with multi-numbers (4913, 913) matching both full 4 digits and truncated 3 digits
+  const bankSms3Digits =
+    'Your A/c ending 913 is credited with INR 5,000.00 on 04-Nov-26 by IMPS from RAJESH. Bal: INR 55,000.00';
+  const parsedBank3 = parseFinancialSms(bankSms3Digits, 'VM-CANBNK', '2026-11-04T14:00:00Z');
+  assert(parsedBank3 !== null, 'Bank SMS with 3 digits parses successfully');
+  assert(parsedBank3!.accountLastDigits === '913', 'Extracted accountLastDigits 913');
+
+  const batchBankResult = processIncomingSmsBatchOnDevice({
+    messages: [
+      {
+        id: 'msg-bank-1',
+        sender: 'VM-CANBNK',
+        body: bankSms3Digits,
+        timestampMs: new Date('2026-11-04T14:00:00Z').getTime(),
+      },
+    ],
+    holdings: [primarySalaryBank],
+    liabilities: [dualCardHdfc],
+    transactions: [],
+    stagingQueue: [],
+    ruleOverrides: [],
+    autoCommit: false,
+  });
+
+  assert(
+    batchBankResult.newlyStagedItems.length === 1,
+    'Bank SMS with 913 is placed in staging'
+  );
+  assert(
+    batchBankResult.newlyStagedItems[0].matchedSourceId === 'hold-primary-bank',
+    'Bank SMS ending 913 routes to primarySalaryBank (allocated with 4913, 913)'
+  );
+
+  // 4. CSV Export and Import Round-Trip with Multi-Digits
+  const multiCsv = exportMasterCsv(
+    [primarySalaryBank],
+    BUILT_IN_ASSET_TYPES,
+    [dualCardHdfc],
+    [],
+    [],
+    [],
+    { settings: DEFAULT_SETTINGS }
+  );
+
+  const parsedMultiCsv = parseMasterCsv(multiCsv, BUILT_IN_ASSET_TYPES);
+  assert(
+    parsedMultiCsv.holdings.length === 1 &&
+      parsedMultiCsv.holdings[0].accountLastDigits === '4913, 913',
+    'Master CSV round-trips bank holding with multiple last digits "4913, 913"'
+  );
+  assert(
+    parsedMultiCsv.liabilities.length === 1 &&
+      parsedMultiCsv.liabilities[0].accountLastDigits === '3230, 6382',
+    'Master CSV round-trips credit card liability with multiple last digits "3230, 6382"'
   );
 
   console.log(`\n========================================`);

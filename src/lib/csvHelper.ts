@@ -18,6 +18,7 @@ import {
   FullMLReplicationState,
   Receivable,
 } from '../types';
+import { cleanAccountDigitsInput } from './smsEngine';
 
 // Helper to escape CSV cell (encodes embedded newlines safely inside quotes; JSON cells are single-line)
 export function escapeCsvCell(val: unknown): string {
@@ -160,7 +161,7 @@ export function parseHoldingsCsv(
     ) as any;
     const isMatured = cols[18] === 'true';
     const createdAt = cols[19] || undefined;
-    const accountLastDigits = cols[20] ? cols[20].replace(/\D/g, '').slice(-6) || undefined : undefined;
+    const accountLastDigits = cols[20] ? cleanAccountDigitsInput(cols[20]) : undefined;
 
     items.push({
       id: preservedId,
@@ -481,7 +482,7 @@ export function parseLiabilitiesCsv(
         if (parsedPol && typeof parsedPol === 'object') prepaymentPolicy = parsedPol;
       } catch {}
     }
-    const accountLastDigits = cols[30] ? cols[30].replace(/\D/g, '').slice(-6) || undefined : undefined;
+    const accountLastDigits = cols[30] ? cleanAccountDigitsInput(cols[30]) : undefined;
 
     items.push({
       id: preservedId,

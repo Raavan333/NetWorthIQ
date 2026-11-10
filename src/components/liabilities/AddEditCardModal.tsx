@@ -8,6 +8,7 @@ import {
   formatAssetOptionLabel,
 } from '../../lib/assetRules';
 import { CreditCard, Landmark, AlertTriangle, ShieldCheck, Zap, Gift } from 'lucide-react';
+import { cleanAccountDigitsInput } from '../../lib/smsEngine';
 
 interface AddEditCardModalProps {
   isOpen: boolean;
@@ -165,7 +166,7 @@ export const AddEditCardModal: React.FC<AddEditCardModalProps> = ({
       kind: 'card',
       cardType,
       currency,
-      accountLastDigits: accountLastDigits.trim() || undefined,
+      accountLastDigits: cleanAccountDigitsInput(accountLastDigits) || undefined,
       linkedAccountId: linkedAccountId || undefined,
       outstanding: cardType === 'debit' ? 0 : parseFloat(outstanding) || 0,
       ratePct: cardType === 'debit' ? 0 : (parseFloat(penaltyMonthlyPct) || 3.5) * 12,
@@ -335,19 +336,18 @@ export const AddEditCardModal: React.FC<AddEditCardModalProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1">
-              Card Last 4 Digits <span className="text-slate-500 font-normal">(for SMS matching)</span>
+              Card Last 4 Digits <span className="text-slate-500 font-normal">(supports multiple, e.g. 3230, 6382)</span>
             </label>
             <input
               type="text"
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="e.g. 3230 or 6382"
+              maxLength={60}
+              placeholder="e.g. 3230, 6382 (wrapper or online card)"
               value={accountLastDigits}
-              onChange={(e) => setAccountLastDigits(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onChange={(e) => setAccountLastDigits(e.target.value.replace(/[^0-9,\s]/g, ''))}
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 font-mono tabular-nums focus:outline-none focus:border-emerald-500"
             />
             <span className="text-[10px] text-slate-500">
-              Matches card spends &amp; bill payment SMS alerts automatically
+              Allocates physical, virtual, or wrapper cards to auto-route SMS spends &amp; bill payments
             </span>
           </div>
 

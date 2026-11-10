@@ -13,6 +13,7 @@ import {
   resolveAssetTypeLabel,
 } from '../../lib/assetRules';
 import { formatMoney } from '../../lib/formatters';
+import { cleanAccountDigitsInput } from '../../lib/smsEngine';
 
 interface AddEditAssetModalProps {
   isOpen: boolean;
@@ -425,7 +426,7 @@ export const AddEditAssetModal: React.FC<AddEditAssetModalProps> = ({
       unrealisedGainLoss: unrealisedCalc,
       withdrawnFromSourceId: isHandCashType ? selectedSourceName : undefined,
       cashAdvanceFee: isHandCashType ? calculatedFee : undefined,
-      accountLastDigits: accountLastDigits.replace(/\D/g, '').slice(-6) || undefined,
+      accountLastDigits: cleanAccountDigitsInput(accountLastDigits) || undefined,
       customCategory: selectedType?.category,
       riskLevel,
     };
@@ -768,38 +769,20 @@ export const AddEditAssetModal: React.FC<AddEditAssetModalProps> = ({
         {/* Account Last 4 Digits for Automated On-Device SMS Transaction Routing */}
         <div>
           <label className="block text-xs font-medium text-slate-300 mb-1">
-            Account Last 4 Digits <span className="text-slate-500 font-normal">(for SMS matching)</span>
+            Account Last 4 Digits <span className="text-slate-500 font-normal">(supports multiple, e.g. 4913, 913)</span>
           </label>
           <input
             type="text"
-            inputMode="numeric"
-            maxLength={6}
-            placeholder="e.g. 4913 or 3986"
+            maxLength={60}
+            placeholder="e.g. 4913, 913"
             value={accountLastDigits}
-            onChange={(e) => setAccountLastDigits(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            onChange={(e) => setAccountLastDigits(e.target.value.replace(/[^0-9,\s]/g, ''))}
             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 font-mono tabular-nums focus:outline-none focus:border-emerald-500"
           />
           <span className="text-[10px] text-slate-500 block mt-0.5">
-            Matches incoming bank debit/credit SMS alerts (e.g. A/c ending 4913) to automatically route transactions.
+            Matches incoming bank debit/credit SMS alerts (e.g. A/c ending 4913 or 913) to automatically route transactions.
           </span>
         </div>
-
-        {(isBankType(typeId) || liquidityClass === 'Immediate') && !isMarketAsset && (
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">
-              Account Last 4 Digits <span className="text-slate-500 font-normal">(optional, matches 4-digit &amp; 3-digit SMS like XX4913 or XX913)</span>
-            </label>
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="e.g. 4913 or 913"
-              value={accountLastDigits}
-              onChange={(e) => setAccountLastDigits(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 font-mono tabular-nums focus:outline-none focus:border-emerald-500"
-            />
-          </div>
-        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>

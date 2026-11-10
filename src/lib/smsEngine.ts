@@ -184,19 +184,49 @@ export function isOpaqueCounterpartyOrPlaceholder(
 }
 
 /**
- * Incremental trailing-digit matcher (checks from last digit leftward: 4 digits, 3 digits, and 2 digits with bank hint).
- * Example: Stored `accountLastDigits: "4913"` matches SMS `XX913` (`"4913".endsWith("913")`),
- * and Stored `"913"` matches SMS `"4913"` (`"4913".endsWith("913")`).
+ * Extracts distinct digit candidate strings (e.g., last 3-6 digits each) from a user-supplied multi-number string.
+ * Supports comma, slash, semicolon, pipe, and whitespace separated numbers:
+ * "3230, 6382", "3230 6382", "3230/6382", "··3230, ··6382".
  */
-export function scoreTrailingDigitsMatch(
-  smsDigitsRaw?: string,
-  storedDigitsRaw?: string,
+export function extractDigitsList(val?: string): string[] {
+  if (!val) return [];
+  const parts = val
+    .split(/[,/;\s|]+/)
+    .map((s) => s.replace(/\D/g, ''))
+    .filter((s) => s.length >= 2 && s.length <= 10);
+  return Array.from(new Set(parts));
+}
+
+/**
+ * Normalizes user input for multiple last-digit allocations into a clean comma-separated string,
+ * e.g. "3230 6382" -> "3230, 6382", or "3230,6382" -> "3230, 6382".
+ */
+export function cleanAccountDigitsInput(raw?: string): string | undefined {
+  if (!raw) return undefined;
+  const list = extractDigitsList(raw);
+  if (list.length === 0) return undefined;
+  return list.join(', ');
+}
+
+/**
+ * Formats one or multiple account last digits for classy, professional UI display (e.g. "··3230, ··6382").
+ */
+export function formatLastDigitsDisplay(raw?: string): string {
+  if (!raw) return '';
+  const tokens = extractDigitsList(raw);
+  if (tokens.length === 0) return raw.trim();
+  return tokens.map((t) => `··${t}`).join(', ');
+}
+
+/**
+ * Evaluates single trailing digit pair match.
+ */
+function scoreSingleTrailingDigitsMatch(
+  a: string,
+  b: string,
   bankHintMatches: boolean = false
 ): number {
-  const a = (smsDigitsRaw || '').replace(/\D/g, '');
-  const b = (storedDigitsRaw || '').replace(/\D/g, '');
   if (!a || !b) return 0;
-
   if (a === b) return 100;
 
   const shorter = a.length <= b.length ? a : b;
@@ -225,8 +255,41 @@ export function scoreTrailingDigitsMatch(
 }
 
 /**
- * Extracts digit groups from a holding/liability name or notes (excluding 4-digit years like 2025/2026 if obvious,
- * though trailing digits still work safely) to match incrementally when `accountLastDigits` was typed in the name/notes.
+ * Incremental trailing-digit matcher (checks from last digit leftward: 4 digits, 3 digits, and 2 digits with bank hint).
+ * Supports multi-number accounts / cards where a stored string contains multiple trailing numbers (e.g. "3230, 6382").
+ * Example: Stored `accountLastDigits: "3230, 6382"` matches SMS `XX3230` and SMS `XX6382`.
+ */
+export function scoreTrailingDigitsMatch(
+  smsDigitsRaw?: string,
+  storedDigitsRaw?: string,
+  bankHintMatches: boolean = false
+): number {
+  if (!smsDigitsRaw || !storedDigitsRaw) return 0;
+
+  // Multi-digit support: if either operand has multiple separated digits (comma, space, slash, etc.)
+  if (/[,/;\s|]/.test(smsDigitsRaw) || /[,/;\s|]/.test(storedDigitsRaw)) {
+    const listA = extractDigitsList(smsDigitsRaw);
+    const listB = extractDigitsList(storedDigitsRaw);
+    const tokensA = listA.length > 0 ? listA : [smsDigitsRaw.replace(/\D/g, '')].filter(Boolean);
+    const tokensB = listB.length > 0 ? listB : [storedDigitsRaw.replace(/\D/g, '')].filter(Boolean);
+    let best = 0;
+    for (const a of tokensA) {
+      for (const b of tokensB) {
+        const s = scoreSingleTrailingDigitsMatch(a, b, bankHintMatches);
+        if (s > best) best = s;
+      }
+    }
+    return best;
+  }
+
+  const a = smsDigitsRaw.replace(/\D/g, '');
+  const b = storedDigitsRaw.replace(/\D/g, '');
+  return scoreSingleTrailingDigitsMatch(a, b, bankHintMatches);
+}
+
+/**
+ * Extracts digit groups from a holding/liability (including all allocated multiple last 4 digits for cards/accounts,
+ * as well as digit tokens in name or notes) to match incrementally when parsing incoming SMS.
  */
 function extractCandidateDigitTokensFromEntity(entity: {
   accountLastDigits?: string;
@@ -236,8 +299,16 @@ function extractCandidateDigitTokensFromEntity(entity: {
 }): { digits: string; weight: number }[] {
   const out: { digits: string; weight: number }[] = [];
   if (entity.accountLastDigits) {
-    const clean = entity.accountLastDigits.replace(/\D/g, '');
-    if (clean.length >= 2) out.push({ digits: clean, weight: 1.0 });
+    const tokens = extractDigitsList(entity.accountLastDigits);
+    for (const t of tokens) {
+      if (t.length >= 2) {
+        out.push({ digits: t, weight: 1.0 });
+      }
+    }
+    const cleanAll = entity.accountLastDigits.replace(/\D/g, '');
+    if (cleanAll.length >= 2 && cleanAll.length <= 6 && !tokens.includes(cleanAll)) {
+      out.push({ digits: cleanAll, weight: 1.0 });
+    }
   }
   const textSources = [entity.name || '', entity.notes || ''];
   for (const src of textSources) {
@@ -2031,10 +2102,10 @@ export function processIncomingSmsBatchOnDevice(params: {
     autoCommit = true,
   } = params;
 
-  const workingHoldings = params.holdings.map((h) => ({ ...h }));
-  const workingLiabilities = params.liabilities.map((l) => ({ ...l }));
-  const workingTransactions = [...params.transactions];
-  const workingStaging = [...params.stagingQueue];
+  const workingHoldings = (params.holdings || []).map((h) => ({ ...h }));
+  const workingLiabilities = (params.liabilities || []).map((l) => ({ ...l }));
+  const workingTransactions = [...(params.transactions || [])];
+  const workingStaging = [...(params.stagingQueue || [])];
 
   const newlyCommittedTransactions: Transaction[] = [];
   const newlyStagedItems: StagedSmsItem[] = [];

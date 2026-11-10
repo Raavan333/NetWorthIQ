@@ -28,6 +28,7 @@ import { exportTransactionsToCsv } from '../../lib/csvHelper';
 import { downloadFile, copyTextToClipboard } from '../../lib/downloadHelper';
 import { ExportDownloadModal } from '../common/ExportDownloadModal';
 import { TransactionReversalModal } from './TransactionReversalModal';
+import { formatLastDigitsDisplay } from '../../lib/smsEngine';
 
 type DatePreset =
   | 'all'
@@ -152,13 +153,13 @@ export const SpendHistory: React.FC = () => {
   const allSources = [
     ...holdings.map((h) => ({
       id: h.id,
-      name: `${h.name}${h.accountLastDigits ? ` (··${h.accountLastDigits})` : ''}`,
+      name: `${h.name}${h.accountLastDigits ? ` (${formatLastDigitsDisplay(h.accountLastDigits)})` : ''}`,
       rawName: h.name,
       lastDigits: h.accountLastDigits,
     })),
     ...liabilities.map((l) => ({
       id: l.id,
-      name: `${l.name}${l.accountLastDigits ? ` (··${l.accountLastDigits})` : ''} · ${
+      name: `${l.name}${l.accountLastDigits ? ` (${formatLastDigitsDisplay(l.accountLastDigits)})` : ''} · ${
         l.kind === 'card' ? 'Card' : 'Loan'
       }`,
       rawName: l.name,

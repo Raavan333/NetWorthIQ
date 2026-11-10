@@ -155,21 +155,21 @@ export const IncomeSalaryView: React.FC = () => {
             className="px-3 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/40 hover:bg-emerald-500/25 text-xs font-semibold text-emerald-300 flex items-center gap-1.5 cursor-pointer shadow-sm"
           >
             <Gift size={14} className="text-emerald-400" />
-            <span>+ Receive Gift / Inflow</span>
+            <span>Receive Gift / Inflow</span>
           </button>
           <button
             onClick={() => setIsAdHocOpen(true)}
             className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-semibold text-slate-200 flex items-center gap-1.5 cursor-pointer shadow-sm"
           >
             <Zap size={14} className="text-amber-400" />
-            <span>+ Ad-hoc Earnings</span>
+            <span>Ad-hoc Earnings</span>
           </button>
           <button
             onClick={() => handleOpenAdd()}
             className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer"
           >
             <Plus size={15} />
-            <span>+ Salary Stream</span>
+            <span>Salary Stream</span>
           </button>
         </div>
       </div>

@@ -174,7 +174,7 @@ export const AssetsView: React.FC = () => {
             className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1 shadow-md shadow-emerald-600/25 cursor-pointer"
           >
             <Plus size={15} />
-            <span className="whitespace-nowrap">+ Asset</span>
+            <span className="whitespace-nowrap">Asset</span>
           </button>
         </div>
       </div>
@@ -507,7 +507,7 @@ export const AssetsView: React.FC = () => {
           className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/25 cursor-pointer transition-all"
         >
           <Plus size={16} />
-          <span>+ Add New Asset</span>
+          <span>Add New Asset</span>
         </button>
       </div>
 

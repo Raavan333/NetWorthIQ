@@ -90,7 +90,7 @@ export interface Holding {
   overdraftAmount?: number;
   overdraftAt?: string; // timestamp when overdraft occurred
   isZeroInterestLoan?: boolean; // 0% p.a. friendly loan / borrowing
-  accountLastDigits?: string; // Last 3-6 digits of bank account for on-device SMS routing (e.g. '3986')
+  accountLastDigits?: string; // Last digits for on-device SMS routing (supports multiple comma-separated numbers, e.g. '4913, 913')
   provenance?: DataProvenance;
 }
 
@@ -141,7 +141,7 @@ export interface BaseLiability {
   userDesiredPayoffDate?: string; // user target debt payoff date (independent of contractual due date)
   provenance?: DataProvenance;
   notes?: string;
-  accountLastDigits?: string; // Last 3-6 digits for on-device SMS routing
+  accountLastDigits?: string; // Last digits for on-device SMS routing (supports multiple comma-separated numbers, e.g. '3230, 6382' for physical Visa + virtual wrapper/UPI token)
 }
 
 /**
