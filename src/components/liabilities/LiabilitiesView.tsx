@@ -12,7 +12,6 @@ import { PayLoanModal } from './PayLoanModal';
 import { LogCashbackModal } from './LogCashbackModal';
 import { CreditCardEmiModal } from './CreditCardEmiModal';
 import { DebtStrategyCard } from './DebtStrategyCard';
-import { WhatIfSimulatorModal } from '../simulator/WhatIfSimulatorModal';
 import {
   CreditCard,
   Building2,
@@ -53,6 +52,7 @@ export const LiabilitiesView: React.FC = () => {
     engineResult,
     logDebitCardAtmWithdrawal,
     getCardEffectiveMode,
+    setActiveModal,
   } = useApp();
 
   const [isAddLoanOpen, setIsAddLoanOpen] = useState(false);
@@ -65,7 +65,6 @@ export const LiabilitiesView: React.FC = () => {
   const [selectedLoanForPay, setSelectedLoanForPay] = useState<Liability | null>(null);
   const [expandedScheduleLoanId, setExpandedScheduleLoanId] = useState<string | null>(null);
   const [emiCard, setEmiCard] = useState<Liability | null>(null);
-  const [isWhatIfOpen, setIsWhatIfOpen] = useState<boolean>(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   const baseCurr = settings.baseCurrency || 'INR';
@@ -115,7 +114,7 @@ export const LiabilitiesView: React.FC = () => {
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full sm:w-auto sm:overflow-visible">
           <button
             type="button"
-            onClick={() => setIsWhatIfOpen(true)}
+            onClick={() => setActiveModal('whatif')}
             className="px-3 py-2 rounded-xl bg-blue-950/60 border border-blue-800/60 hover:bg-blue-900/70 text-blue-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shrink-0 whitespace-nowrap active:scale-[0.98] transition-all"
             title="Simulate debt payoff & savings scenarios"
           >
@@ -1333,12 +1332,6 @@ export const LiabilitiesView: React.FC = () => {
             setCardPayAmountOverride(amt);
             setSelectedCardForPay(target);
           }}
-        />
-      )}
-
-      {isWhatIfOpen && (
-        <WhatIfSimulatorModal
-          onClose={() => setIsWhatIfOpen(false)}
         />
       )}
     </div>

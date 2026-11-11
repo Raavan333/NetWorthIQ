@@ -261,13 +261,15 @@ export const ScheduledTransfersManager: React.FC = () => {
             return (
               <div
                 key={st.id}
-                className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-slate-700 transition-colors"
+                className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-slate-700 transition-colors w-full min-w-0 max-w-full overflow-hidden"
               >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-white">{st.name}</span>
+                <div className="space-y-1.5 min-w-0 flex-1 w-full max-w-full overflow-hidden">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0 max-w-full">
+                    <span className="text-xs font-bold text-white break-words line-clamp-2 max-w-full" title={st.name}>
+                      {st.name}
+                    </span>
                     <span
-                      className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${
+                      className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase shrink-0 ${
                         st.isActive
                           ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                           : 'bg-slate-800 text-slate-400'
@@ -275,39 +277,39 @@ export const ScheduledTransfersManager: React.FC = () => {
                     >
                       {st.isActive ? 'Active' : 'Paused'}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono">
+                    <span className="text-[10px] text-slate-400 font-mono shrink-0">
                       {st.dayOfMonth}th of month ({st.frequency})
                     </span>
                     {st.isActive && (
-                      <span className="text-[10px] text-cyan-400 font-mono">
+                      <span className="text-[10px] text-cyan-400 font-mono truncate max-w-full">
                         • Next: {st.nextExecutionDate || computeNextScheduledDate(st.dayOfMonth, st.frequency, new Date(), st.lastExecutedMonth)}
                       </span>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-[11px] text-slate-300 font-mono">
-                    <span className="text-slate-400 truncate max-w-[150px]">{fromName}</span>
+                  <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-300 font-mono min-w-0 max-w-full">
+                    <span className="text-slate-400 truncate max-w-[120px] sm:max-w-[200px]" title={fromName}>{fromName}</span>
                     <ArrowRight size={11} className="text-slate-500 shrink-0" />
-                    <span className="text-emerald-400 truncate max-w-[150px]">{toName}</span>
+                    <span className="text-emerald-400 truncate max-w-[120px] sm:max-w-[200px]" title={toName}>{toName}</span>
                   </div>
 
                   {st.lastExecutedDate ? (
-                    <div className="text-[10px] text-slate-500">
+                    <div className="text-[10px] text-slate-500 truncate max-w-full">
                       Last executed: {st.lastExecutedDate}
                     </div>
                   ) : st.lastExecutedMonth ? (
-                    <div className="text-[10px] text-slate-500">
+                    <div className="text-[10px] text-slate-500 truncate max-w-full">
                       Last executed month: {st.lastExecutedMonth}
                     </div>
                   ) : null}
                 </div>
 
-                <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-800">
-                  <div className="text-sm font-bold font-mono text-white">
+                <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-800 shrink-0">
+                  <div className="text-sm font-bold font-mono text-white shrink-0">
                     {formatMoney(st.amount, st.currency)}
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0">
                     <button
                       type="button"
                       onClick={() => handleToggleActive(st)}

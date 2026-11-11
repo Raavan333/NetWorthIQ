@@ -1064,13 +1064,13 @@ export const SpendHistory: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => startEditingReason(t)}
-                            className="text-sm font-semibold truncate text-white hover:text-emerald-300 transition-colors cursor-pointer text-left"
+                            className="text-sm font-semibold truncate max-w-[180px] sm:max-w-md text-white hover:text-emerald-300 transition-colors cursor-pointer text-left"
                             title="Click to edit reason (learns merchant preference)"
                           >
                             {t.reason}
                           </button>
                         ) : (
-                          <span className="text-sm font-semibold truncate text-slate-400 line-through">
+                          <span className="text-sm font-semibold truncate max-w-[180px] sm:max-w-md text-slate-400 line-through">
                             {t.reason}
                           </span>
                         )}
@@ -1172,13 +1172,13 @@ export const SpendHistory: React.FC = () => {
                         </span>
                         <span>•</span>
                         {fromName && toName ? (
-                          <span>
+                          <span className="truncate max-w-[140px] sm:max-w-[280px]" title={`${fromName} → ${toName}`}>
                             {fromName} → {toName}
                           </span>
                         ) : fromName ? (
-                          <span>From: {fromName}</span>
+                          <span className="truncate max-w-[140px] sm:max-w-[280px]" title={`From: ${fromName}`}>From: {fromName}</span>
                         ) : toName ? (
-                          <span>To: {toName}</span>
+                          <span className="truncate max-w-[140px] sm:max-w-[280px]" title={`To: ${toName}`}>To: {toName}</span>
                         ) : (
                           <span>Direct Settlement</span>
                         )}

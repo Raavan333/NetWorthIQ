@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Currency, AppTheme } from '../../types';
 import { DEFAULT_SETTINGS, THEME_PRESETS } from '../../lib/defaults';
@@ -24,6 +24,8 @@ import {
   Brain,
   Smartphone,
   Compass,
+  RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 import { DataManagementSection } from './DataManagementSection';
 import { SpendCategoriesManager } from './SpendCategoriesManager';
@@ -89,6 +91,74 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection = 'pr
   const [confirmPin, setConfirmPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [pinSuccess, setPinSuccess] = useState('');
+
+  // Theme Customizer draft states & save status
+  const [draftColors, setDraftColors] = useState<AppTheme['colors']>(theme.colors);
+  const [draftBgStyle, setDraftBgStyle] = useState<'solid' | 'radial' | 'mesh' | 'grid'>(
+    theme.bgStyle || 'mesh'
+  );
+  const [draftFontStack, setDraftFontStack] = useState<string>(theme.fontStack || 'sans');
+  const [draftFontSizeScale, setDraftFontSizeScale] = useState<number>(theme.fontSizeScale || 1.0);
+  const [themeSaveSuccess, setThemeSaveSuccess] = useState(false);
+
+  // Sync draft states when active theme changes
+  useEffect(() => {
+    if (theme && theme.colors) {
+      setDraftColors(theme.colors);
+      setDraftBgStyle((theme.bgStyle as any) || 'mesh');
+      setDraftFontStack(theme.fontStack || 'sans');
+      setDraftFontSizeScale(theme.fontSizeScale || 1.0);
+    }
+  }, [theme]);
+
+  const handleDraftColorChange = (key: keyof AppTheme['colors'], val: string) => {
+    const next = { ...draftColors, [key]: val };
+    if (key === 'surface') {
+      next.card = val;
+    }
+    setDraftColors(next);
+    // Instant live preview
+    updateTheme({
+      ...theme,
+      colors: next,
+    });
+  };
+
+  const handleSelectPresetTheme = (p: AppTheme) => {
+    setDraftColors(p.colors);
+    setDraftBgStyle((p.bgStyle as any) || 'mesh');
+    setDraftFontStack(p.fontStack || 'sans');
+    setDraftFontSizeScale(p.fontSizeScale || 1.0);
+    updateTheme(p);
+  };
+
+  const handleSaveTheme = async () => {
+    const customTheme: AppTheme = {
+      ...theme,
+      id: theme.id.startsWith('custom-') ? theme.id : `custom-${Date.now()}`,
+      name: theme.name.includes('(Customized)')
+        ? theme.name
+        : `${theme.name.split(' ')[0]} (Customized)`,
+      colors: draftColors,
+      bgStyle: draftBgStyle,
+      fontStack: draftFontStack,
+      fontSizeScale: draftFontSizeScale,
+    };
+    await updateTheme(customTheme);
+    setThemeSaveSuccess(true);
+    setTimeout(() => setThemeSaveSuccess(false), 3500);
+  };
+
+  const handleResetTheme = async () => {
+    const def = THEME_PRESETS[0];
+    setDraftColors(def.colors);
+    setDraftBgStyle((def.bgStyle as any) || 'mesh');
+    setDraftFontStack(def.fontStack || 'sans');
+    setDraftFontSizeScale(def.fontSizeScale || 1.0);
+    await updateTheme(def);
+    setThemeSaveSuccess(true);
+    setTimeout(() => setThemeSaveSuccess(false), 3000);
+  };
 
   // Handle Profile Save
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -438,51 +508,104 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection = 'pr
       {/* 3. THEME & FONTS */}
       {activeSection === 'theme' && (
         <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider">Themes & Accessibility</h3>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Themes & Custom Colors</h3>
+              <p className="text-xs text-slate-400">
+                Personalize your color palette, surface styling, and background atmosphere
+              </p>
+            </div>
+
+            {/* Prominent Save Theme Button */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleResetTheme}
+                className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 hover:bg-slate-800 text-slate-300 text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+                title="Reset to Obsidian Emerald default theme"
+              >
+                <RotateCcw size={13} />
+                <span>Reset</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveTheme}
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md transition-all ${
+                  themeSaveSuccess
+                    ? 'bg-emerald-500 text-slate-950 ring-2 ring-emerald-400'
+                    : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/25'
+                }`}
+              >
+                {themeSaveSuccess ? (
+                  <>
+                    <Check size={14} className="stroke-[3]" />
+                    <span>Saved!</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={14} />
+                    <span>Save Theme Changes</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {themeSaveSuccess && (
+            <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2 animate-fade-in shadow-xs">
+              <Check size={16} className="text-emerald-400 shrink-0" />
+              <span>
+                Theme changes saved successfully! Your custom colors and atmosphere are now permanently saved.
+              </span>
+            </div>
+          )}
 
           {/* Presets */}
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-2">Theme Presets</label>
+            <label className="block text-xs font-medium text-slate-400 mb-2">Curated Theme Presets</label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {THEME_PRESETS.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => updateTheme(p)}
-                  className={`p-2.5 rounded-xl border text-xs font-semibold cursor-pointer transition-all text-left ${
-                    theme.id === p.id
-                      ? 'bg-slate-800 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500'
-                      : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span
-                      className="w-3 h-3 rounded-full border border-white/20"
-                      style={{ backgroundColor: p.colors.primary }}
-                    />
-                    <span className="truncate">{p.name.split(' ')[0]}</span>
-                  </div>
-                  <span className="text-[10px] opacity-70">{p.isDark ? 'Dark Mode' : 'Light Mode'}</span>
-                </button>
-              ))}
+              {THEME_PRESETS.map((p) => {
+                const isActive = theme.id === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleSelectPresetTheme(p)}
+                    className={`p-2.5 rounded-xl border text-xs font-semibold cursor-pointer transition-all text-left ${
+                      isActive
+                        ? 'bg-slate-800 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span
+                        className="w-3.5 h-3.5 rounded-full border border-white/20 shrink-0"
+                        style={{ backgroundColor: p.colors.primary }}
+                      />
+                      <span className="truncate">{p.name.split(' ')[0]}</span>
+                    </div>
+                    <span className="text-[10px] opacity-70 block">
+                      {p.isDark ? 'Dark Mode' : 'Light Mode'}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           {/* Custom Background & Palette Studio */}
-          <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
+          <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3.5">
             <div className="flex items-center justify-between">
               <div>
-                <span className="font-semibold text-slate-200 text-xs block">Custom Background & Colors</span>
+                <span className="font-semibold text-slate-200 text-xs block">Custom Palette Studio</span>
                 <span className="text-[11px] text-slate-400">
-                  Configure your exact hex colors and background atmosphere
+                  Click a swatch or enter exact hex codes to build your custom colorway
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => updateTheme(THEME_PRESETS[0])}
-                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium cursor-pointer"
-              >
-                Reset Colors
-              </button>
+              <span className="text-[10px] text-slate-500 font-mono">
+                Live Preview Active
+              </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
@@ -492,83 +615,122 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection = 'pr
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
-                    value={theme.colors.bg || '#080d1a'}
-                    onChange={(e) =>
-                      updateTheme({
-                        ...theme,
-                        colors: { ...theme.colors, bg: e.target.value },
-                      })
-                    }
+                    value={draftColors.bg || '#080d1a'}
+                    onChange={(e) => handleDraftColorChange('bg', e.target.value)}
                     className="w-8 h-8 rounded-lg border border-slate-700 cursor-pointer bg-transparent"
+                    title="Pick background color"
                   />
                   <input
                     type="text"
-                    value={theme.colors.bg || '#080d1a'}
-                    onChange={(e) =>
-                      updateTheme({
-                        ...theme,
-                        colors: { ...theme.colors, bg: e.target.value },
-                      })
-                    }
+                    value={draftColors.bg || '#080d1a'}
+                    onChange={(e) => handleDraftColorChange('bg', e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200 font-mono"
+                    placeholder="#080d1a"
                   />
                 </div>
               </div>
 
               {/* Surface Color */}
               <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800/80">
-                <label className="block text-[11px] font-medium text-slate-400 mb-1.5">Surface / Card Container</label>
+                <label className="block text-[11px] font-medium text-slate-400 mb-1.5">Surface Containers</label>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
-                    value={theme.colors.surface || '#0f172a'}
-                    onChange={(e) =>
-                      updateTheme({
-                        ...theme,
-                        colors: { ...theme.colors, surface: e.target.value, card: e.target.value },
-                      })
-                    }
+                    value={draftColors.surface || '#0f172a'}
+                    onChange={(e) => handleDraftColorChange('surface', e.target.value)}
                     className="w-8 h-8 rounded-lg border border-slate-700 cursor-pointer bg-transparent"
+                    title="Pick surface color"
                   />
                   <input
                     type="text"
-                    value={theme.colors.surface || '#0f172a'}
-                    onChange={(e) =>
-                      updateTheme({
-                        ...theme,
-                        colors: { ...theme.colors, surface: e.target.value, card: e.target.value },
-                      })
-                    }
+                    value={draftColors.surface || '#0f172a'}
+                    onChange={(e) => handleDraftColorChange('surface', e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200 font-mono"
+                    placeholder="#0f172a"
                   />
                 </div>
               </div>
 
-              {/* Accent Color */}
+              {/* Card Color */}
               <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800/80">
-                <label className="block text-[11px] font-medium text-slate-400 mb-1.5">Accent & Primary Tint</label>
+                <label className="block text-[11px] font-medium text-slate-400 mb-1.5">Cards & Panels</label>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
-                    value={theme.colors.primary || '#10b981'}
-                    onChange={(e) =>
-                      updateTheme({
-                        ...theme,
-                        colors: { ...theme.colors, primary: e.target.value },
-                      })
-                    }
+                    value={draftColors.card || '#131e36'}
+                    onChange={(e) => handleDraftColorChange('card', e.target.value)}
                     className="w-8 h-8 rounded-lg border border-slate-700 cursor-pointer bg-transparent"
+                    title="Pick card color"
                   />
                   <input
                     type="text"
-                    value={theme.colors.primary || '#10b981'}
-                    onChange={(e) =>
-                      updateTheme({
-                        ...theme,
-                        colors: { ...theme.colors, primary: e.target.value },
-                      })
-                    }
+                    value={draftColors.card || '#131e36'}
+                    onChange={(e) => handleDraftColorChange('card', e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200 font-mono"
+                    placeholder="#131e36"
+                  />
+                </div>
+              </div>
+
+              {/* Primary Accent Color */}
+              <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800/80">
+                <label className="block text-[11px] font-medium text-slate-400 mb-1.5">Primary Accent Tint</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={draftColors.primary || '#10b981'}
+                    onChange={(e) => handleDraftColorChange('primary', e.target.value)}
+                    className="w-8 h-8 rounded-lg border border-slate-700 cursor-pointer bg-transparent"
+                    title="Pick primary accent tint"
+                  />
+                  <input
+                    type="text"
+                    value={draftColors.primary || '#10b981'}
+                    onChange={(e) => handleDraftColorChange('primary', e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200 font-mono"
+                    placeholder="#10b981"
+                  />
+                </div>
+              </div>
+
+              {/* Secondary Accent Color */}
+              <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800/80">
+                <label className="block text-[11px] font-medium text-slate-400 mb-1.5">Secondary Accent</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={draftColors.accent || '#06b6d4'}
+                    onChange={(e) => handleDraftColorChange('accent', e.target.value)}
+                    className="w-8 h-8 rounded-lg border border-slate-700 cursor-pointer bg-transparent"
+                    title="Pick secondary accent color"
+                  />
+                  <input
+                    type="text"
+                    value={draftColors.accent || '#06b6d4'}
+                    onChange={(e) => handleDraftColorChange('accent', e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200 font-mono"
+                    placeholder="#06b6d4"
+                  />
+                </div>
+              </div>
+
+              {/* Border Color */}
+              <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800/80">
+                <label className="block text-[11px] font-medium text-slate-400 mb-1.5">Border Tone</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={draftColors.border || '#1e293b'}
+                    onChange={(e) => handleDraftColorChange('border', e.target.value)}
+                    className="w-8 h-8 rounded-lg border border-slate-700 cursor-pointer bg-transparent"
+                    title="Pick border tone"
+                  />
+                  <input
+                    type="text"
+                    value={draftColors.border || '#1e293b'}
+                    onChange={(e) => handleDraftColorChange('border', e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200 font-mono"
+                    placeholder="#1e293b"
                   />
                 </div>
               </div>
@@ -583,20 +745,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection = 'pr
                   { id: 'radial', label: 'Ambient Radial Glow' },
                   { id: 'mesh', label: 'Multi-Color Mesh' },
                   { id: 'grid', label: 'Blueprint Grid' },
-                ].map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => updateTheme({ ...theme, bgStyle: s.id as any })}
-                    className={`py-1.5 px-2 rounded-xl text-xs font-medium border text-center transition-all cursor-pointer ${
-                      (theme.bgStyle || 'mesh') === s.id
-                        ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 font-semibold'
-                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    {s.label}
-                  </button>
-                ))}
+                ].map((s) => {
+                  const isActive = draftBgStyle === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        setDraftBgStyle(s.id as any);
+                        updateTheme({ ...theme, bgStyle: s.id as any });
+                      }}
+                      className={`py-1.5 px-2 rounded-xl text-xs font-medium border text-center transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 font-semibold'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -622,8 +790,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection = 'pr
             <div>
               <label className="block text-xs font-medium text-slate-400 mb-1">System Font Stack</label>
               <select
-                value={theme.fontStack}
-                onChange={(e) => updateTheme({ ...theme, fontStack: e.target.value })}
+                value={draftFontStack}
+                onChange={(e) => {
+                  setDraftFontStack(e.target.value);
+                  updateTheme({ ...theme, fontStack: e.target.value });
+                }}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200"
               >
                 <option value="sans">Modern Sans-Serif (Inter / System UI)</option>
@@ -635,18 +806,47 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection = 'pr
 
             <div>
               <label className="block text-xs font-medium text-slate-400 mb-1">
-                Font Scale Multiplier: {(theme.fontSizeScale || 1.0) * 100}%
+                Font Scale Multiplier: {(draftFontSizeScale * 100).toFixed(0)}%
               </label>
               <input
                 type="range"
                 min="0.85"
                 max="1.25"
                 step="0.05"
-                value={theme.fontSizeScale || 1.0}
-                onChange={(e) => updateTheme({ ...theme, fontSizeScale: parseFloat(e.target.value) })}
+                value={draftFontSizeScale}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  setDraftFontSizeScale(val);
+                  updateTheme({ ...theme, fontSizeScale: val });
+                }}
                 className="w-full accent-emerald-500 cursor-pointer mt-2"
               />
             </div>
+          </div>
+
+          {/* Bottom Save Action Bar */}
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800/80">
+            <button
+              type="button"
+              onClick={handleSaveTheme}
+              className={`px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md transition-all ${
+                themeSaveSuccess
+                  ? 'bg-emerald-500 text-slate-950 ring-2 ring-emerald-400'
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/25'
+              }`}
+            >
+              {themeSaveSuccess ? (
+                <>
+                  <Check size={14} className="stroke-[3]" />
+                  <span>Theme Settings Saved!</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={14} />
+                  <span>Save All Theme Changes</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       )}

@@ -3,7 +3,6 @@ import { useApp } from '../../context/AppContext';
 import { InsightCardData, InsightType } from '../../types';
 import { formatMoney, formatCompactMoney } from '../../lib/formatters';
 import { MLInvestmentAllocationEngine } from './MLInvestmentAllocationEngine';
-import { HumanCapitalSkillCard } from '../assets/HumanCapitalSkillCard';
 import { HistoricalNetWorthChart } from './HistoricalNetWorthChart';
 import { ENGAGEMENT_STRATEGY_LABELS } from '../../lib/mlEngine';
 import {
@@ -38,6 +37,7 @@ export const InsightsView: React.FC = () => {
     brokerUsageForecast,
     currencies,
     settings,
+    careerPrediction,
   } = useApp();
 
   const [period, setPeriod] = useState<'month' | '3m' | '6m' | '12m' | 'ytd'>('month');
@@ -114,9 +114,32 @@ export const InsightsView: React.FC = () => {
       {/* Historical Net Worth Growth Trend Line Chart */}
       <HistoricalNetWorthChart />
 
-      {/* Career Progression, Human Skill & Lifetime Valuation Engine */}
-      <div className="pt-1">
-        <HumanCapitalSkillCard />
+      {/* ML Human Skill & Lifetime Earning Trajectory Overview */}
+      <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center shrink-0">
+            <GraduationCap size={20} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-white tracking-tight">Career & Human Skill Valuation</h3>
+              <span className="text-[10px] text-purple-300 bg-purple-950/60 border border-purple-800/50 px-2 py-0.5 rounded-full font-semibold">
+                +{careerPrediction.netRateContributionPct.toFixed(1)}% Velocity
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              5-Yr NPV: <strong className="text-slate-200 font-mono">{formatMoney(careerPrediction.humanCapitalNpv5Yr, baseCurr, currSym)}</strong> · 10-Yr NPV: <strong className="text-emerald-400 font-mono">{formatMoney(careerPrediction.humanCapitalNpv10Yr, baseCurr, currSym)}</strong>
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setActiveModal('career')}
+          className="px-4 py-2 rounded-xl bg-purple-950/60 border border-purple-800/60 hover:bg-purple-900/60 text-purple-200 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs shrink-0"
+        >
+          <span>Open Career Hub</span>
+          <ArrowRight size={14} />
+        </button>
       </div>
 
       {/* ML Excess Cash Flow, Safe Buffer & Market Cap Allocation Engine */}

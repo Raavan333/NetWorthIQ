@@ -5,7 +5,7 @@ import { HeroCards } from './HeroCards';
 import { LiquidityStrip } from './LiquidityStrip';
 import { QuickStatsStrip } from './QuickStatsStrip';
 import { NeedsAttentionPanel } from './NeedsAttentionPanel';
-import { NetWorthHistoryChart } from './NetWorthHistoryChart';
+import { HistoricalNetWorthChart } from '../insights/HistoricalNetWorthChart';
 import { GoalsMiniStrip } from './GoalsMiniStrip';
 import { CashFlowForecastCard } from './CashFlowForecastCard';
 import { SubconsciousNudge } from './SubconsciousNudge';
@@ -53,7 +53,7 @@ export const HomeView: React.FC = () => {
       <CashFlowForecastCard />
       <QuickStatsStrip />
       <GoalsMiniStrip />
-      <NetWorthHistoryChart />
+      <HistoricalNetWorthChart />
     </div>
   );
 };

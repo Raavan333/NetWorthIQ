@@ -48,6 +48,20 @@ const MainLayout: React.FC = () => {
     }
   }, [isLocked]);
 
+  // Synchronize dynamic custom theme colors to document root
+  useEffect(() => {
+    if (!theme || !theme.colors) return;
+    const root = document.documentElement;
+    root.style.setProperty('--theme-bg', theme.colors.bg || '#080d1a');
+    root.style.setProperty('--theme-surface', theme.colors.surface || '#0f172a');
+    root.style.setProperty('--theme-card', theme.colors.card || '#131e36');
+    root.style.setProperty('--theme-primary', theme.colors.primary || '#10b981');
+    root.style.setProperty('--theme-accent', theme.colors.accent || '#06b6d4');
+    root.style.setProperty('--theme-border', theme.colors.border || '#1e293b');
+    root.style.setProperty('--theme-text', theme.colors.text || '#f8fafc');
+    root.style.setProperty('--theme-text-muted', theme.colors.textMuted || '#94a3b8');
+  }, [theme]);
+
   // Subtle tactile haptic micro-feedback on button press (when device supports vibration)
   useEffect(() => {
     const handlePointerDown = (e: PointerEvent) => {

@@ -5,7 +5,6 @@ import { convertToBase, getHoldingLocalValue } from '../../lib/calcEngine';
 import { formatMoney, formatCompactMoney } from '../../lib/formatters';
 import { AddEditAssetModal } from './AddEditAssetModal';
 import { BatchAddAssetsModal } from './BatchAddAssetsModal';
-import { UpdateValuesTableModal } from './UpdateValuesTableModal';
 import { SellHoldingModal } from './SellHoldingModal';
 import { SweepInRedeemModal } from './SweepInRedeemModal';
 import { ProcessDepositPayoutModal } from './ProcessDepositPayoutModal';
@@ -13,7 +12,7 @@ import { ReceivablesManager } from './ReceivablesManager';
 import { ReconciliationAuditModal } from '../common/ReconciliationAuditModal';
 import { PayLoanModal } from '../liabilities/PayLoanModal';
 import { Modal } from '../common/Modal';
-import { HumanCapitalSkillCard } from './HumanCapitalSkillCard';
+import { downloadFile } from '../../lib/downloadHelper';
 import {
   Plus,
   TableProperties,
@@ -30,6 +29,12 @@ import {
   Building2,
   ShieldCheck,
   GraduationCap,
+  Download,
+  Upload,
+  Check,
+  X,
+  RotateCcw,
+  ArrowRight,
 } from 'lucide-react';
 
 export const AssetsView: React.FC = () => {
@@ -40,6 +45,11 @@ export const AssetsView: React.FC = () => {
     currencies,
     settings,
     deleteHolding,
+    updateHolding,
+    updateHoldingValuesBulk,
+    setActiveModal,
+    careerPrediction,
+    engineResult,
   } = useApp();
 
   const [search, setSearch] = useState('');
@@ -47,7 +57,6 @@ export const AssetsView: React.FC = () => {
   const [holdingToDelete, setHoldingToDelete] = useState<Holding | null>(null);
   const [isAddEditOpen, setIsAddEditOpen] = useState(false);
   const [isBatchAddOpen, setIsBatchAddOpen] = useState(false);
-  const [isBulkUpdateOpen, setIsBulkUpdateOpen] = useState(false);
   const [selectedHoldingForSale, setSelectedHoldingForSale] = useState<Holding | null>(null);
   const [selectedSweepInHolding, setSelectedSweepInHolding] = useState<Holding | null>(null);
   const [selectedDepositForPayout, setSelectedDepositForPayout] = useState<Holding | null>(null);
@@ -55,6 +64,16 @@ export const AssetsView: React.FC = () => {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [auditHoldingId, setAuditHoldingId] = useState<string | undefined>(undefined);
+
+  // Single-window Values Spreadsheet & Dropdown state
+  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [editedValues, setEditedValues] = useState<Record<string, { currentPrice?: number; principalOrValue?: number }>>({});
+  const [isSavingBulk, setIsSavingBulk] = useState(false);
+  const [saveBulkStatus, setSaveBulkStatus] = useState<string | null>(null);
+  const [quickEditHoldingId, setQuickEditHoldingId] = useState<string | null>(null);
+  const [quickEditVal, setQuickEditVal] = useState<string>('');
+  const [isQuickSaving, setIsQuickSaving] = useState(false);
 
   const baseCurr = settings.baseCurrency || 'INR';
   const currMap: Record<string, typeof currencies[0]> = {};
@@ -108,6 +127,144 @@ export const AssetsView: React.FC = () => {
     groupedByType[tName].push(h);
   }
 
+  // Handle price/value changes in the single window values spreadsheet
+  const handlePriceChange = (id: string, val: string, isMarket: boolean) => {
+    const num = parseFloat(val);
+    setEditedValues((prev) => ({
+      ...prev,
+      [id]: isMarket
+        ? { ...prev[id], currentPrice: isNaN(num) ? undefined : num }
+        : { ...prev[id], principalOrValue: isNaN(num) ? undefined : num },
+    }));
+  };
+
+  const handleSaveBulk = async () => {
+    setIsSavingBulk(true);
+    try {
+      const updates = Object.entries(editedValues).map(([id, vals]) => ({
+        id,
+        ...vals,
+      }));
+      if (updates.length > 0) {
+        await updateHoldingValuesBulk(updates);
+        setSaveBulkStatus(`Successfully updated ${updates.length} asset values!`);
+        setTimeout(() => setSaveBulkStatus(null), 3000);
+      }
+      setEditedValues({});
+    } finally {
+      setIsSavingBulk(false);
+    }
+  };
+
+  const handleDiscardBulk = () => {
+    setEditedValues({});
+  };
+
+  // Export current table as CSV directly from single window
+  const handleExportCSV = async () => {
+    const headers = ['type,name,currency,units,price_or_value,rate_pct,start_date,maturity_date,liquidity'];
+    const rows = holdings.map((h) => {
+      const isMarket = h.units !== undefined && h.units > 0;
+      const priceOrVal = isMarket
+        ? editedValues[h.id]?.currentPrice ?? h.currentPrice ?? 0
+        : editedValues[h.id]?.principalOrValue ?? h.principalOrValue ?? 0;
+      return [
+        h.typeId,
+        `"${h.name}"`,
+        h.currency,
+        h.units || '',
+        priceOrVal,
+        h.fixedRatePct || '',
+        h.startDate || '',
+        h.maturityDate || '',
+        h.liquidityClass,
+      ].join(',');
+    });
+
+    const csvContent = [headers, ...rows].join('\n');
+    const filename = `networthiq_assets_${new Date().toISOString().split('T')[0]}.csv`;
+    await downloadFile(filename, csvContent, 'text/csv');
+    setSaveBulkStatus('Assets CSV exported successfully!');
+    setTimeout(() => setSaveBulkStatus(null), 3000);
+  };
+
+  // Import CSV directly on single window
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        const lines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+        if (lines.length < 2) {
+          setSaveBulkStatus('CSV has no data rows');
+          return;
+        }
+
+        const updates: { id: string; currentPrice?: number; principalOrValue?: number }[] = [];
+        let matchedCount = 0;
+
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',').map((c) => c.replace(/^"|"$/g, '').trim());
+          if (cols.length >= 5) {
+            const name = cols[1];
+            const priceOrVal = parseFloat(cols[4]);
+
+            const target = holdings.find((h) => h.name.toLowerCase() === name.toLowerCase());
+            if (target && !isNaN(priceOrVal)) {
+              matchedCount++;
+              if (target.units !== undefined && target.units > 0) {
+                updates.push({ id: target.id, currentPrice: priceOrVal });
+              } else {
+                updates.push({ id: target.id, principalOrValue: priceOrVal });
+              }
+            }
+          }
+        }
+
+        if (updates.length > 0) {
+          await updateHoldingValuesBulk(updates);
+          setSaveBulkStatus(`Successfully updated ${matchedCount} holdings from CSV!`);
+          setTimeout(() => setSaveBulkStatus(null), 3000);
+        } else {
+          setSaveBulkStatus('No matching holdings found by name in CSV.');
+          setTimeout(() => setSaveBulkStatus(null), 3000);
+        }
+      } catch {
+        setSaveBulkStatus('Failed to parse CSV file.');
+        setTimeout(() => setSaveBulkStatus(null), 3000);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleStartQuickEdit = (h: Holding) => {
+    setQuickEditHoldingId(h.id);
+    const isMarket = h.units !== undefined && h.units > 0;
+    const currentVal = isMarket ? h.currentPrice || 0 : h.principalOrValue || 0;
+    setQuickEditVal(currentVal.toString());
+  };
+
+  const handleSaveQuickEdit = async (h: Holding) => {
+    const num = parseFloat(quickEditVal);
+    if (isNaN(num) || num < 0) return;
+    setIsQuickSaving(true);
+    try {
+      const isMarket = h.units !== undefined && h.units > 0;
+      await updateHolding({
+        ...h,
+        ...(isMarket ? { currentPrice: num } : { principalOrValue: num }),
+      });
+      setQuickEditHoldingId(null);
+    } finally {
+      setIsQuickSaving(false);
+    }
+  };
+
+  const pendingEditsCount = Object.keys(editedValues).length;
+
   return (
     <div className="space-y-4 pb-20 animate-fade-in">
       {/* Top Action Bar */}
@@ -119,52 +276,86 @@ export const AssetsView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full sm:w-auto sm:overflow-visible">
-          <button
-            type="button"
-            onClick={() => {
-              setAuditHoldingId(undefined);
-              setIsAuditModalOpen(true);
-            }}
-            className="px-3 py-2 rounded-xl bg-indigo-950/50 border border-indigo-800/60 hover:bg-indigo-900/60 text-indigo-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shrink-0 whitespace-nowrap active:scale-[0.98] transition-all"
-            title="Reconcile account balance against recorded transaction ledger"
-          >
-            <ShieldCheck size={14} className="text-indigo-400" />
-            <span>Audit Ledger</span>
-          </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Manage Portfolio Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsActionsMenuOpen(!isActionsMenuOpen)}
+              className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm active:scale-[0.98] transition-all"
+              aria-haspopup="true"
+              aria-expanded={isActionsMenuOpen}
+            >
+              <TableProperties size={14} className="text-cyan-400" />
+              <span>Manage</span>
+              <ChevronDown
+                size={14}
+                className={`text-slate-400 transition-transform duration-200 ${
+                  isActionsMenuOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setIsBatchAddOpen(true)}
-            className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shrink-0 whitespace-nowrap active:scale-[0.98] transition-all"
-            title="Add multiple assets at once in a compact grid"
-          >
-            <Layers size={14} className="text-emerald-400" />
-            <span>Batch Add</span>
-          </button>
+            {isActionsMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setIsActionsMenuOpen(false)}
+                />
+                <div className="absolute right-0 top-11 z-40 min-w-56 bg-slate-950 border border-slate-700/80 rounded-xl shadow-2xl p-1.5 flex flex-col gap-1 backdrop-blur-md animate-fade-in text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsActionsMenuOpen(false);
+                      setViewMode((m) => (m === 'table' ? 'cards' : 'table'));
+                    }}
+                    className="px-2.5 py-2 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
+                  >
+                    <TableProperties size={14} className="text-cyan-400 shrink-0" />
+                    <span>{viewMode === 'table' ? 'Switch to Category Cards' : 'Update Values (Single Window)'}</span>
+                  </button>
 
-          <button
-            type="button"
-            onClick={() => setIsBulkUpdateOpen(true)}
-            className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shrink-0 whitespace-nowrap active:scale-[0.98] transition-all"
-            title="Quick bulk update asset values"
-          >
-            <TableProperties size={14} className="text-cyan-400" />
-            <span>Update Values</span>
-          </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsActionsMenuOpen(false);
+                      setIsBatchAddOpen(true);
+                    }}
+                    className="px-2.5 py-2 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
+                  >
+                    <Layers size={14} className="text-emerald-400 shrink-0" />
+                    <span>Batch Add Assets</span>
+                  </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              const el = document.getElementById('human-capital-section');
-              if (el) el.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className="px-3 py-2 rounded-xl bg-purple-950/40 border border-purple-800/50 hover:bg-purple-900/40 text-xs font-semibold text-purple-300 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shrink-0 whitespace-nowrap active:scale-[0.98] transition-all"
-            title="Jump to Human Capital Lifetime Skill Valuation & Career Progression"
-          >
-            <GraduationCap size={14} className="text-purple-400" />
-            <span>Skill Asset</span>
-          </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsActionsMenuOpen(false);
+                      setAuditHoldingId(undefined);
+                      setIsAuditModalOpen(true);
+                    }}
+                    className="px-2.5 py-2 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
+                  >
+                    <ShieldCheck size={14} className="text-indigo-400 shrink-0" />
+                    <span>Audit Ledger Balance</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsActionsMenuOpen(false);
+                      const el = document.getElementById('human-capital-section');
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="px-2.5 py-2 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
+                  >
+                    <GraduationCap size={14} className="text-purple-400 shrink-0" />
+                    <span>Skill Asset / Human Capital</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
 
           <button
             type="button"
@@ -172,7 +363,7 @@ export const AssetsView: React.FC = () => {
               setSelectedHoldingForEdit(null);
               setIsAddEditOpen(true);
             }}
-            className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1 shadow-md shadow-emerald-600/25 cursor-pointer shrink-0 whitespace-nowrap active:scale-[0.98] transition-all"
+            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1 shadow-md shadow-emerald-600/25 cursor-pointer shrink-0 whitespace-nowrap active:scale-[0.98] transition-all"
           >
             <Plus size={15} />
             <span>Add Asset</span>
@@ -183,20 +374,198 @@ export const AssetsView: React.FC = () => {
       {/* Receivables & Personal Loans Given (Dedicated Asset Ledger) */}
       <ReceivablesManager />
 
-      {/* Search Input */}
-      <div className="relative">
-        <Search
-          size={16}
-          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
-        />
-        <input
-          type="text"
-          placeholder="Search by asset name or type..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors"
-        />
+      {/* Search & Single Window View Switcher Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search
+            size={16}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
+          />
+          <input
+            type="text"
+            placeholder="Search by asset name or type..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors"
+          />
+        </div>
+
+        {/* View Switcher: Single Window Category Cards vs Single Window Values Editor */}
+        <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs shrink-0">
+          <button
+            type="button"
+            onClick={() => setViewMode('cards')}
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
+              viewMode === 'cards'
+                ? 'bg-slate-800 text-white shadow-xs'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Categories
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('table')}
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+              viewMode === 'table'
+                ? 'bg-cyan-950/70 text-cyan-300 border border-cyan-700/50 shadow-xs'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <TableProperties size={13} className="text-cyan-400" />
+            <span>Values Editor</span>
+            {pendingEditsCount > 0 && (
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            )}
+          </button>
+        </div>
       </div>
+
+      {/* SINGLE WINDOW VALUES EDITOR TABLE */}
+      {viewMode === 'table' && (
+        <div className="rounded-2xl bg-slate-900 border border-slate-800 shadow-sm p-4 space-y-3 animate-fade-in">
+          <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2 border-b border-slate-800/80">
+            <div>
+              <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                <TableProperties size={14} className="text-cyan-400" />
+                <span>Single-Window Asset Values Spreadsheet</span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Directly edit prices, stock quotes, and bank balances in place without leaving this page.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors"
+                title="Export holding values table to CSV"
+              >
+                <Download size={13} />
+                <span>Export CSV</span>
+              </button>
+
+              <label className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center gap-1 cursor-pointer transition-colors">
+                <Upload size={13} />
+                <span>Import CSV</span>
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={handleImportCSV}
+                  className="hidden"
+                />
+              </label>
+
+              {pendingEditsCount > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleDiscardBulk}
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/40 text-slate-400 hover:text-rose-300 text-xs font-medium cursor-pointer transition-colors"
+                  >
+                    Discard
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveBulk}
+                    disabled={isSavingBulk}
+                    className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm shadow-emerald-600/30 transition-colors"
+                  >
+                    <Check size={13} />
+                    <span>Save {pendingEditsCount} Changes</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {saveBulkStatus && (
+            <div className="p-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
+              <Check size={13} />
+              <span>{saveBulkStatus}</span>
+            </div>
+          )}
+
+          <div className="border border-slate-800/80 rounded-xl overflow-hidden overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800/80">
+                <tr>
+                  <th className="p-3">Asset</th>
+                  <th className="p-3">Category</th>
+                  <th className="p-3">Units</th>
+                  <th className="p-3 min-w-[150px]">Current Price / Balance</th>
+                  <th className="p-3">Currency</th>
+                  <th className="p-3 text-right">Computed Base</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 font-mono">
+                {filtered.map((h) => {
+                  const isMarket = h.units !== undefined && h.units > 0;
+                  const itemCurrSym = currMap[h.currency]?.symbol || h.currency;
+                  const currentVal = isMarket
+                    ? editedValues[h.id]?.currentPrice ?? h.currentPrice ?? 0
+                    : editedValues[h.id]?.principalOrValue ?? h.principalOrValue ?? 0;
+                  const isChanged = editedValues[h.id] !== undefined;
+
+                  const liveLocal = isMarket ? (h.units || 0) * currentVal : currentVal;
+                  const liveBase = convertToBase(liveLocal, h.currency, currMap);
+
+                  return (
+                    <tr
+                      key={h.id}
+                      className={`hover:bg-slate-800/30 transition-colors ${
+                        isChanged ? 'bg-cyan-950/20' : ''
+                      }`}
+                    >
+                      <td className="p-3 font-semibold text-slate-100 font-sans">
+                        <div className="flex items-center gap-1.5">
+                          <span>{h.name}</span>
+                          {isChanged && (
+                            <span className="text-[9px] px-1 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-sans">
+                              edited
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-3 text-slate-400 font-sans">
+                        {typeMap[h.typeId]?.name || 'Other'}
+                      </td>
+                      <td className="p-3 text-slate-300">
+                        {isMarket ? h.units : '—'}
+                      </td>
+                      <td className="p-3">
+                        <div className="relative flex items-center max-w-[170px]">
+                          <span className="absolute left-2.5 text-xs text-slate-400 pointer-events-none">
+                            {itemCurrSym}
+                          </span>
+                          <input
+                            type="number"
+                            step="any"
+                            value={currentVal}
+                            onChange={(e) => handlePriceChange(h.id, e.target.value, isMarket)}
+                            className={`w-full bg-slate-950 border rounded-lg pl-7 pr-2 py-1 text-xs text-white focus:outline-none transition-colors ${
+                              isChanged
+                                ? 'border-cyan-500 ring-1 ring-cyan-500/30'
+                                : 'border-slate-700/80 focus:border-cyan-500'
+                            }`}
+                          />
+                        </div>
+                      </td>
+                      <td className="p-3 text-slate-400 uppercase">
+                        {h.currency}
+                      </td>
+                      <td className="p-3 text-right text-slate-200 font-semibold tabular-nums">
+                        {formatMoney(liveBase, baseCurr, baseCurrSymbol, settings.numberGrouping, 0)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Holdings Grouped List */}
       {Object.entries(groupedByType).length === 0 ? (
@@ -315,20 +684,55 @@ export const AssetsView: React.FC = () => {
 
                       {/* Values & Actions — wraps cleanly on small screens so Edit, Delete, and MoreVertical are always visible */}
                       <div className="w-full sm:w-auto flex flex-wrap items-center justify-between sm:justify-end gap-2.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/50 shrink-0">
-                        <div className="text-left sm:text-right min-w-0">
-                          <div
-                            className={`text-sm font-bold font-mono tabular-nums ${
-                              baseVal < 0 ? 'text-rose-400' : 'text-white'
-                            }`}
-                          >
-                            {formatMoney(baseVal, baseCurr, baseCurrSymbol, settings.numberGrouping, 0)}
+                        {quickEditHoldingId === h.id ? (
+                          <div className="flex items-center gap-1.5 bg-slate-950 border border-cyan-500 rounded-lg p-1 animate-fade-in shadow-sm">
+                            <span className="text-xs text-slate-400 pl-1 font-mono">{itemCurrSym}</span>
+                            <input
+                              type="number"
+                              step="any"
+                              value={quickEditVal}
+                              onChange={(e) => setQuickEditVal(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveQuickEdit(h);
+                                else if (e.key === 'Escape') setQuickEditHoldingId(null);
+                              }}
+                              autoFocus
+                              className="w-24 bg-transparent text-xs font-mono font-bold text-white focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSaveQuickEdit(h)}
+                              disabled={isQuickSaving}
+                              className="p-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer"
+                              title="Save Value"
+                            >
+                              <Check size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setQuickEditHoldingId(null)}
+                              className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
+                              title="Cancel"
+                            >
+                              <X size={12} />
+                            </button>
                           </div>
-                          {isCrossCurrency && (
-                            <div className="text-[11px] text-slate-400 font-mono tabular-nums">
-                              {formatMoney(localVal, h.currency, itemCurrSym, settings.numberGrouping, 2)}
+                        ) : (
+                          <div className="text-left sm:text-right min-w-0">
+                            <div
+                              className={`text-sm font-bold font-mono tabular-nums ${
+                                baseVal < 0 ? 'text-rose-400' : 'text-white'
+                              }`}
+                            >
+                              {formatMoney(baseVal, baseCurr, baseCurrSymbol, settings.numberGrouping, 0)}
                             </div>
-                          )}
-                        </div>
+                            {isCrossCurrency && (
+                              <div className="text-[11px] text-slate-400 font-mono tabular-nums">
+                                {formatMoney(localVal, h.currency, itemCurrSym, settings.numberGrouping, 2)}
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                         {/* Direct Edit, Delete, and More quick action buttons */}
                         <div className="flex items-center gap-1.5 shrink-0 ml-auto sm:ml-0">
@@ -384,6 +788,20 @@ export const AssetsView: React.FC = () => {
                                   aria-label={`Options for ${h.name}`}
                                   className="absolute right-0 top-9 z-50 min-w-48 bg-slate-950 border border-slate-700 rounded-xl shadow-2xl p-1.5 flex flex-col gap-1 backdrop-blur-md animate-fade-in"
                                 >
+                                  {/* Quick Update Value directly on single window */}
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    onClick={() => {
+                                      setActiveMenuId(null);
+                                      handleStartQuickEdit(h);
+                                    }}
+                                    className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-cyan-300 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
+                                  >
+                                    <TableProperties size={14} className="shrink-0 text-cyan-400" />
+                                    <span>Quick Update Value</span>
+                                  </button>
+
                                   {/* For Bank Accounts and Cash: Option to audit transactions vs ledger */}
                                   {(isBankAccount(h) || h.liquidityClass === 'Immediate') && (
                                     <button
@@ -394,7 +812,7 @@ export const AssetsView: React.FC = () => {
                                         setAuditHoldingId(h.id);
                                         setIsAuditModalOpen(true);
                                       }}
-                                      className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-cyan-300 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
+                                      className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-300 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
                                     >
                                       <ShieldCheck size={14} className="shrink-0 text-cyan-400" />
                                       <span>Audit Ledger</span>
@@ -512,9 +930,34 @@ export const AssetsView: React.FC = () => {
         </button>
       </div>
 
-      {/* Human Capital & Lifetime Skill Asset Valuation (Intangible Earning Asset) */}
-      <div id="human-capital-section" className="pt-4 border-t border-slate-800/80">
-        <HumanCapitalSkillCard />
+      {/* Human Capital & Lifetime Skill Asset Valuation Link Card */}
+      <div id="human-capital-section" className="pt-2">
+        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center shrink-0">
+              <GraduationCap size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-white tracking-tight">Human Capital & Career Valuation</h3>
+                <span className="text-[10px] text-purple-300 bg-purple-950/60 border border-purple-800/50 px-2 py-0.5 rounded-full font-semibold">
+                  +{careerPrediction.netRateContributionPct.toFixed(1)}% Velocity
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Skill Earning Power: <strong className="text-emerald-400 font-mono">{formatMoney(engineResult.salaryYearlyIncomeBase, baseCurr, baseCurrSymbol)}/yr</strong> · 5-Yr NPV: <strong className="text-slate-200 font-mono">{formatMoney(careerPrediction.humanCapitalNpv5Yr, baseCurr, baseCurrSymbol)}</strong>
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveModal('career')}
+            className="px-4 py-2 rounded-xl bg-purple-950/60 border border-purple-800/60 hover:bg-purple-900/60 text-purple-200 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs shrink-0"
+          >
+            <span>Open Career Hub</span>
+            <ArrowRight size={14} />
+          </button>
+        </div>
       </div>
 
       {/* Modals */}
@@ -534,13 +977,6 @@ export const AssetsView: React.FC = () => {
         <BatchAddAssetsModal
           isOpen={isBatchAddOpen}
           onClose={() => setIsBatchAddOpen(false)}
-        />
-      )}
-
-      {isBulkUpdateOpen && (
-        <UpdateValuesTableModal
-          isOpen={isBulkUpdateOpen}
-          onClose={() => setIsBulkUpdateOpen(false)}
         />
       )}
 

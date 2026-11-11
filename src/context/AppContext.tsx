@@ -528,7 +528,18 @@ const AppContext = createContext<AppContextType | null>(null);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettingsState] = useState<AppSettings>(DEFAULT_SETTINGS);
-  const [theme, setThemeState] = useState<AppTheme>(THEME_PRESETS[0]);
+  const [theme, setThemeState] = useState<AppTheme>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const cached = localStorage.getItem('networthiq_theme');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.colors) return parsed;
+        }
+      }
+    } catch {}
+    return THEME_PRESETS[0];
+  });
   const [currencies, setCurrencies] = useState<Currency[]>(DEFAULT_CURRENCIES);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>(BUILT_IN_ASSET_TYPES);
   const [holdings, setHoldings] = useState<Holding[]>([]);
@@ -703,7 +714,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (detectedSmsPerm) setSmsPermissionStatus(detectedSmsPerm);
 
         if (storedSettings) setSettingsState(storedSettings);
-        if (storedTheme) setThemeState(storedTheme);
+        if (storedTheme) {
+          setThemeState(storedTheme);
+          try {
+            localStorage.setItem('networthiq_theme', JSON.stringify(storedTheme));
+          } catch {}
+        }
         if (storedCurrencies && storedCurrencies.length > 0) setCurrencies(storedCurrencies);
         if (storedAssetTypes && storedAssetTypes.length > 0) setAssetTypes(storedAssetTypes);
         if (storedTaxRules) setTaxRulesState(storedTaxRules);
@@ -1648,6 +1664,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateTheme = async (newTheme: AppTheme) => {
     setThemeState(newTheme);
+    try {
+      localStorage.setItem('networthiq_theme', JSON.stringify(newTheme));
+    } catch {}
     await dbStorage.setSingleton('theme', newTheme);
   };
 

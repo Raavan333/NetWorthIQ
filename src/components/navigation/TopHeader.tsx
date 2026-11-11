@@ -44,7 +44,7 @@ export const TopHeader: React.FC = () => {
   const criticalCount = attentionItems.filter((i) => i.level === 'critical').length;
 
   return (
-    <header className="sticky top-0 z-30 w-full border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md px-3 sm:px-4 py-2.5 sm:py-3">
+    <header className="relative z-30 w-full border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md px-3 sm:px-4 py-2.5 sm:py-3">
       <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
         {/* Brand / Logo */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
