@@ -316,17 +316,17 @@ export const ReceivablesManager: React.FC = () => {
               return (
                 <div
                   key={person.name}
-                  className={`rounded-xl border transition-colors ${
+                  className={`rounded-xl border transition-colors overflow-hidden ${
                     netOwedToUser
                       ? 'bg-slate-950/45 border-slate-800 hover:border-slate-700'
                       : 'bg-slate-950/45 border-amber-900/40 hover:border-amber-800/60'
                   }`}
                 >
                   {/* Person Summary Row */}
-                  <div className="p-3 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-3 flex items-start sm:items-center justify-between gap-2.5 sm:gap-3">
+                    <div className="flex items-start sm:items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
                       <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 sm:mt-0 ${
                           netOwedToUser
                             ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25'
                             : 'bg-amber-500/10 text-amber-300 border border-amber-500/25'
@@ -335,53 +335,55 @@ export const ReceivablesManager: React.FC = () => {
                         {person.name.slice(0, 1).toUpperCase()}
                       </div>
 
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1 overflow-hidden">
                         <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                          <span className="font-semibold text-slate-100 text-sm">{person.name}</span>
-                          <span className="text-slate-600" aria-hidden="true">·</span>
+                          <span className="font-semibold text-slate-100 text-sm truncate max-w-[120px] xs:max-w-[180px] sm:max-w-none">
+                            {person.name}
+                          </span>
                           <span
-                            className={`text-[11px] font-semibold ${
-                              netOwedToUser ? 'text-emerald-400' : 'text-amber-300'
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+                              netOwedToUser
+                                ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/40'
+                                : 'bg-amber-950/60 text-amber-300 border border-amber-800/40'
                             }`}
                           >
                             {netOwedToUser ? 'Owes you' : 'You owe'}
                           </span>
-                          <span className="text-slate-600" aria-hidden="true">·</span>
-                          <span className="text-[11px] text-slate-400">
+                          <span className="text-[10px] text-slate-400 font-medium bg-slate-800/80 px-1.5 py-0.5 rounded shrink-0">
                             {activeRecords.length} {activeRecords.length === 1 ? 'entry' : 'entries'}
                           </span>
                         </div>
 
                         {/* Interest-Rate Summed Buckets */}
                         {person.rateBuckets.length > 0 && (
-                          <div className="text-[11px] text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 font-mono tabular-nums">
+                          <div className="text-[11px] text-slate-400 flex flex-wrap items-center gap-1.5 mt-1 font-mono tabular-nums overflow-hidden max-w-full">
                             {person.rateBuckets.map((bucket, idx) => (
-                              <React.Fragment key={`${bucket.direction}-${bucket.interestRatePct}`}>
-                                {idx > 0 && <span className="text-slate-600">·</span>}
-                                <span>
-                                  {bucket.interestRatePct > 0
-                                    ? `${bucket.interestRatePct}% p.a.: ${fmt(bucket.totalWithInterest)}${
-                                        bucket.accruedInterest > 0
-                                          ? ` (+${fmt(bucket.accruedInterest)} int)`
-                                          : ''
-                                      }`
-                                    : `0% rate: ${fmt(bucket.principalTotal)}`}
-                                  {bucket.count > 1 ? ` (${bucket.count} summed)` : ''}
-                                </span>
-                              </React.Fragment>
+                              <span
+                                key={`${bucket.direction}-${bucket.interestRatePct}`}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800/80 text-[10px] text-slate-300 font-mono break-all xs:break-normal max-w-full"
+                              >
+                                {bucket.interestRatePct > 0
+                                  ? `${bucket.interestRatePct}% p.a.: ${fmt(bucket.totalWithInterest)}${
+                                      bucket.accruedInterest > 0
+                                        ? ` (+${fmt(bucket.accruedInterest)} int)`
+                                        : ''
+                                    }`
+                                  : `0% rate: ${fmt(bucket.principalTotal)}`}
+                                {bucket.count > 1 ? ` (${bucket.count} summed)` : ''}
+                              </span>
                             ))}
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2.5 shrink-0 ml-auto">
-                      <div className="text-right">
-                        <div className="text-[10px] text-slate-400 uppercase tracking-wider">
+                    <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 ml-auto">
+                      <div className="text-right shrink-0">
+                        <div className="text-[10px] text-slate-400 uppercase tracking-wider whitespace-nowrap">
                           Net Balance
                         </div>
                         <div
-                          className={`text-base font-bold font-mono tabular-nums ${
+                          className={`text-sm sm:text-base font-bold font-mono tabular-nums whitespace-nowrap ${
                             netOwedToUser ? 'text-emerald-400' : 'text-amber-400'
                           }`}
                         >
@@ -392,7 +394,7 @@ export const ReceivablesManager: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setExpandedPerson(isExpanded ? null : person.name)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
                         title={isExpanded ? 'Hide entries' : 'Show entries'}
                       >
                         {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
@@ -401,8 +403,8 @@ export const ReceivablesManager: React.FC = () => {
                   </div>
 
                   {/* Understated Action Bar */}
-                  <div className="px-3 py-2 bg-slate-900/60 border-t border-slate-800/60 flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <div className="flex flex-wrap items-center gap-1.5">
+                  <div className="px-3 py-2 bg-slate-900/60 border-t border-slate-800/60 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 text-xs">
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar max-w-full py-0.5">
                       <button
                         type="button"
                         onClick={() => {
@@ -500,32 +502,30 @@ export const ReceivablesManager: React.FC = () => {
                         return (
                           <div
                             key={rec.id}
-                            className="p-2.5 rounded-lg bg-slate-900 border border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs"
+                            className="p-2.5 rounded-lg bg-slate-900 border border-slate-800/80 flex flex-col xs:flex-row xs:items-center justify-between gap-2 text-xs overflow-hidden"
                           >
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1 overflow-hidden">
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <span
-                                  className={`text-[11px] font-semibold ${
-                                    isBorrow ? 'text-amber-300' : 'text-emerald-400'
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+                                    isBorrow
+                                      ? 'bg-amber-950/60 text-amber-300 border border-amber-800/40'
+                                      : 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/40'
                                   }`}
                                 >
                                   {isBorrow ? 'Borrowed' : 'Lent'}
                                 </span>
-                                <span className="text-slate-600">·</span>
-                                <span className="text-[11px] text-slate-300 truncate">
+                                <span className="text-[11px] text-slate-300 truncate max-w-[150px] xs:max-w-[200px] sm:max-w-none">
                                   {rec.notes || (isBorrow ? 'Shared bill balance' : 'Direct loan')}
                                 </span>
                                 {isRecOverdue && (
-                                  <>
-                                    <span className="text-slate-600">·</span>
-                                    <span className="text-[11px] text-rose-400 font-medium inline-flex items-center gap-0.5">
-                                      <AlertTriangle size={11} /> Overdue
-                                    </span>
-                                  </>
+                                  <span className="text-[10px] text-rose-400 font-semibold bg-rose-950/50 border border-rose-800/40 px-1.5 py-0.5 rounded inline-flex items-center gap-0.5 shrink-0">
+                                    <AlertTriangle size={10} /> Overdue
+                                  </span>
                                 )}
                               </div>
 
-                              <div className="text-[10px] text-slate-500 flex flex-wrap items-center gap-x-2 mt-0.5 font-mono tabular-nums">
+                              <div className="text-[10px] text-slate-500 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1 font-mono tabular-nums overflow-hidden max-w-full">
                                 <span>{rec.issueDate}</span>
                                 {rec.expectedDate && <span>· Due {rec.expectedDate}</span>}
                                 <span>
@@ -539,8 +539,8 @@ export const ReceivablesManager: React.FC = () => {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-                              <div className="text-right font-mono tabular-nums mr-1">
+                            <div className="flex items-center justify-between xs:justify-end gap-1.5 shrink-0 pt-1 xs:pt-0 border-t xs:border-t-0 border-slate-800/60">
+                              <div className="text-left xs:text-right font-mono tabular-nums mr-1">
                                 <div className="font-bold text-slate-200">
                                   {fmt(rec.outstandingAmount + accrued, rec.currency)}
                                 </div>
@@ -619,35 +619,35 @@ export const ReceivablesManager: React.FC = () => {
             return (
               <div
                 key={rec.id}
-                className={`p-3 rounded-lg border transition-colors ${
+                className={`p-3 rounded-lg border transition-colors overflow-hidden ${
                   isOverdue
                     ? 'bg-rose-950/15 border-rose-600/30'
                     : 'bg-slate-950/45 border-slate-800'
                 } space-y-2`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1 overflow-hidden">
                     <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                      <span className="font-semibold text-slate-100">{rec.debtorName}</span>
-                      <span className="text-slate-600">·</span>
+                      <span className="font-semibold text-slate-100 text-sm truncate max-w-[130px] xs:max-w-[200px] sm:max-w-none">
+                        {rec.debtorName}
+                      </span>
                       <span
-                        className={`text-[11px] font-semibold ${
-                          isBorrow ? 'text-amber-300' : 'text-emerald-400'
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+                          isBorrow
+                            ? 'bg-amber-950/60 text-amber-300 border border-amber-800/40'
+                            : 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/40'
                         }`}
                       >
                         {isBorrow ? 'You owe' : 'Owes you'}
                       </span>
                       {isOverdue && (
-                        <>
-                          <span className="text-slate-600">·</span>
-                          <span className="text-[11px] text-rose-400 font-medium inline-flex items-center gap-0.5">
-                            <AlertTriangle size={11} /> Overdue
-                          </span>
-                        </>
+                        <span className="text-[10px] text-rose-400 font-semibold bg-rose-950/50 border border-rose-800/40 px-1.5 py-0.5 rounded inline-flex items-center gap-0.5 shrink-0">
+                          <AlertTriangle size={10} /> Overdue
+                        </span>
                       )}
                     </div>
 
-                    <div className="text-[11px] text-slate-400 flex flex-wrap items-center gap-x-2 mt-0.5 font-mono tabular-nums">
+                    <div className="text-[10px] text-slate-400 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1 font-mono tabular-nums overflow-hidden max-w-full">
                       <span>{rec.issueDate}</span>
                       {rec.expectedDate && <span>· Due {rec.expectedDate}</span>}
                       <span>

@@ -112,40 +112,43 @@ export const LiabilitiesView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap w-full sm:w-auto">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full sm:w-auto sm:overflow-visible">
           <button
+            type="button"
             onClick={() => setIsWhatIfOpen(true)}
-            className="flex-1 sm:flex-none px-2.5 py-2 rounded-xl bg-blue-950/60 border border-blue-800/50 hover:bg-blue-900/60 text-xs font-semibold text-blue-300 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+            className="px-3 py-2 rounded-xl bg-blue-950/60 border border-blue-800/60 hover:bg-blue-900/70 text-blue-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shrink-0 whitespace-nowrap active:scale-[0.98] transition-all"
             title="Simulate debt payoff & savings scenarios"
           >
             <Sparkles size={14} className="text-blue-400" />
-            <span>What-If</span>
+            <span>What-If Simulator</span>
           </button>
           <button
+            type="button"
             onClick={() => setIsBatchAddOpen(true)}
-            className="flex-1 sm:flex-none px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+            className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shrink-0 whitespace-nowrap active:scale-[0.98] transition-all"
             title="Add multiple cards and loans at once"
           >
             <Layers size={14} className="text-cyan-400" />
-            <span className="hidden sm:inline">Batch Add</span>
-            <span className="sm:hidden">Batch</span>
+            <span>Batch Add</span>
           </button>
           <button
+            type="button"
             onClick={() => {
               setEditingLiability(null);
               setIsAddCardOpen(true);
             }}
-            className="flex-1 sm:flex-none px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-semibold text-slate-200 flex items-center justify-center gap-1 cursor-pointer shadow-sm"
+            className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shrink-0 whitespace-nowrap active:scale-[0.98] transition-all"
           >
             <CreditCard size={14} className="text-rose-400" />
             <span>+ Card</span>
           </button>
           <button
+            type="button"
             onClick={() => {
               setEditingLiability(null);
               setIsAddLoanOpen(true);
             }}
-            className="flex-1 sm:flex-none px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-semibold text-slate-200 flex items-center justify-center gap-1 cursor-pointer shadow-sm"
+            className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shrink-0 whitespace-nowrap active:scale-[0.98] transition-all"
           >
             <Building2 size={14} className="text-indigo-400" />
             <span>+ Loan</span>
@@ -254,7 +257,7 @@ export const LiabilitiesView: React.FC = () => {
               return (
                 <div
                   key={card.id}
-                  className={`rounded-2xl p-4 transition-all relative shadow-md ${
+                  className={`rounded-2xl p-4 transition-all relative shadow-md overflow-hidden ${
                     isOverdue
                       ? 'bg-rose-950/25 border-2 border-rose-500 text-slate-200'
                       : isDueSoon
@@ -263,27 +266,27 @@ export const LiabilitiesView: React.FC = () => {
                   }`}
                 >
                   {/* Card Header */}
-                  <div className="flex flex-wrap items-start justify-between gap-2.5">
-                    <div className="min-w-0">
+                  <div className="flex flex-col xs:flex-row xs:items-start justify-between gap-2.5">
+                    <div className="min-w-0 flex-1 overflow-hidden">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-base font-bold text-white break-words">{getSafeLiabilityName(card)}</h4>
+                        <h4 className="text-base font-bold text-white break-words truncate max-w-full">{getSafeLiabilityName(card)}</h4>
                         {isOverdue && (
-                          <span className="px-2 py-0.5 rounded bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider">
+                          <span className="px-2 py-0.5 rounded bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider shrink-0">
                             Overdue
                           </span>
                         )}
                         {isDueSoon && (
-                          <span className="px-2 py-0.5 rounded bg-amber-500 text-slate-950 text-[10px] font-bold uppercase tracking-wider">
+                          <span className="px-2 py-0.5 rounded bg-amber-500 text-slate-950 text-[10px] font-bold uppercase tracking-wider shrink-0">
                             Due in {state?.daysRemaining}d
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
+                      <p className="text-[11px] text-slate-400 mt-0.5 truncate max-w-full">
                         Statement day {card.statementDay || 20} · {card.interestFreeDays || 18}d grace period
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-1.5 ml-auto">
+                    <div className="flex items-center gap-1.5 shrink-0 self-end xs:self-auto overflow-x-auto no-scrollbar max-w-full">
                       {(card.outstanding || 0) > 0 && (
                         <button
                           onClick={() => setEmiCard(card)}
@@ -970,23 +973,23 @@ export const LiabilitiesView: React.FC = () => {
               return (
                 <div
                   key={loan.id}
-                  className="rounded-2xl bg-slate-900 border border-slate-800 p-4 hover:border-slate-700 transition-all shadow-sm relative"
+                  className="rounded-2xl bg-slate-900 border border-slate-800 p-4 hover:border-slate-700 transition-all shadow-sm relative overflow-hidden"
                 >
-                  <div className="flex flex-wrap items-start justify-between gap-2.5">
-                    <div className="min-w-0">
+                  <div className="flex flex-col xs:flex-row xs:items-start justify-between gap-2.5">
+                    <div className="min-w-0 flex-1 overflow-hidden">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-base font-bold text-white break-words">
+                        <h4 className="text-base font-bold text-white break-words truncate max-w-full">
                           {getSafeLiabilityName(loan)}
                         </h4>
                         {isPaidThisMonth && (
-                          <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-950/60 border border-emerald-500/40 px-1.5 py-0.5 rounded flex items-center gap-1 shadow-xs">
+                          <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-950/60 border border-emerald-500/40 px-1.5 py-0.5 rounded flex items-center gap-1 shadow-xs shrink-0">
                             <CheckCircle2 size={11} className="text-emerald-400 shrink-0" />
                             <span>Paid for this month</span>
                           </span>
                         )}
                         {isPaidThisMonth && policyEval.penaltyPct > 0 && (
                           <span
-                            className="text-[10px] font-semibold text-amber-300 bg-amber-950/60 border border-amber-500/40 px-1.5 py-0.5 rounded flex items-center gap-1 shadow-xs"
+                            className="text-[10px] font-semibold text-amber-300 bg-amber-950/60 border border-amber-500/40 px-1.5 py-0.5 rounded flex items-center gap-1 shadow-xs shrink-0"
                             title={`Prepayment charges (${policyEval.penaltyPct}%) apply if paid again this month`}
                           >
                             <AlertTriangle size={11} className="text-amber-400 shrink-0" />
@@ -994,28 +997,28 @@ export const LiabilitiesView: React.FC = () => {
                           </span>
                         )}
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-0.5 text-xs text-slate-400">
-                        <span className="text-indigo-400 font-bold font-mono tabular-nums">
+                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-0.5 text-xs text-slate-400 max-w-full overflow-hidden">
+                        <span className="text-indigo-400 font-bold font-mono tabular-nums shrink-0">
                           {loan.ratePct}% p.a.
                         </span>
                         {displayEmi !== undefined && displayEmi > 0 && (
                           <>
-                            <span aria-hidden="true">·</span>
-                            <span className="font-mono tabular-nums">
+                            <span aria-hidden="true" className="shrink-0">·</span>
+                            <span className="font-mono tabular-nums shrink-0">
                               EMI {formatMoney(displayEmi, loan.currency, loanCurrSym, settings.numberGrouping, 0)}
                             </span>
                           </>
                         )}
                         {loan.emiDay && (
                           <>
-                            <span aria-hidden="true">·</span>
-                            <span>Due {loan.emiDay}th</span>
+                            <span aria-hidden="true" className="shrink-0">·</span>
+                            <span className="shrink-0">Due {loan.emiDay}th</span>
                           </>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 ml-auto shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0 self-end xs:self-auto overflow-x-auto no-scrollbar max-w-full">
                       <button
                         type="button"
                         onClick={() => setSelectedLoanForPay(loan)}

@@ -119,50 +119,51 @@ export const AssetsView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap w-full sm:w-auto">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full sm:w-auto sm:overflow-visible">
           <button
-            onClick={() => setIsBatchAddOpen(true)}
-            className="flex-1 sm:flex-none px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
-            title="Add multiple assets at once in a compact grid"
-          >
-            <Layers size={14} className="text-emerald-400" />
-            <span className="hidden sm:inline">Batch Add</span>
-            <span className="sm:hidden">Batch</span>
-          </button>
-
-          <button
-            onClick={() => setIsBulkUpdateOpen(true)}
-            className="flex-1 sm:flex-none px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
-          >
-            <TableProperties size={14} className="text-cyan-400" />
-            <span className="hidden sm:inline">Update Values</span>
-            <span className="sm:hidden">Values</span>
-          </button>
-
-          <button
+            type="button"
             onClick={() => {
               setAuditHoldingId(undefined);
               setIsAuditModalOpen(true);
             }}
-            className="flex-1 sm:flex-none px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+            className="px-3 py-2 rounded-xl bg-indigo-950/50 border border-indigo-800/60 hover:bg-indigo-900/60 text-indigo-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shrink-0 whitespace-nowrap active:scale-[0.98] transition-all"
             title="Reconcile account balance against recorded transaction ledger"
           >
             <ShieldCheck size={14} className="text-indigo-400" />
-            <span className="hidden sm:inline">Audit Ledger</span>
-            <span className="sm:hidden">Audit</span>
+            <span>Audit Ledger</span>
           </button>
 
           <button
+            type="button"
+            onClick={() => setIsBatchAddOpen(true)}
+            className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shrink-0 whitespace-nowrap active:scale-[0.98] transition-all"
+            title="Add multiple assets at once in a compact grid"
+          >
+            <Layers size={14} className="text-emerald-400" />
+            <span>Batch Add</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsBulkUpdateOpen(true)}
+            className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shrink-0 whitespace-nowrap active:scale-[0.98] transition-all"
+            title="Quick bulk update asset values"
+          >
+            <TableProperties size={14} className="text-cyan-400" />
+            <span>Update Values</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => {
               const el = document.getElementById('human-capital-section');
               if (el) el.scrollIntoView({ behavior: 'smooth' });
             }}
-            className="flex-1 sm:flex-none px-2.5 py-2 rounded-xl bg-purple-950/40 border border-purple-800/50 hover:bg-purple-900/40 text-xs font-semibold text-purple-300 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+            className="px-3 py-2 rounded-xl bg-purple-950/40 border border-purple-800/50 hover:bg-purple-900/40 text-xs font-semibold text-purple-300 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shrink-0 whitespace-nowrap active:scale-[0.98] transition-all"
             title="Jump to Human Capital Lifetime Skill Valuation & Career Progression"
           >
             <GraduationCap size={14} className="text-purple-400" />
-            <span className="hidden sm:inline">Skill Asset</span>
-            <span className="sm:hidden">Skills</span>
+            <span>Skill Asset</span>
           </button>
 
           <button
@@ -171,10 +172,10 @@ export const AssetsView: React.FC = () => {
               setSelectedHoldingForEdit(null);
               setIsAddEditOpen(true);
             }}
-            className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1 shadow-md shadow-emerald-600/25 cursor-pointer"
+            className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1 shadow-md shadow-emerald-600/25 cursor-pointer shrink-0 whitespace-nowrap active:scale-[0.98] transition-all"
           >
             <Plus size={15} />
-            <span className="whitespace-nowrap">Asset</span>
+            <span>Add Asset</span>
           </button>
         </div>
       </div>
@@ -250,41 +251,41 @@ export const AssetsView: React.FC = () => {
                   return (
                     <div
                       key={h.id}
-                      className="p-3.5 sm:p-4 hover:bg-slate-800/30 transition-colors flex flex-wrap sm:flex-nowrap items-start sm:items-center justify-between gap-2.5 sm:gap-3 relative"
+                      className="p-3.5 sm:p-4 hover:bg-slate-800/30 transition-colors flex flex-wrap sm:flex-nowrap items-start sm:items-center justify-between gap-2.5 sm:gap-3 relative overflow-hidden"
                     >
-                      <div className="flex-1 min-w-[180px]">
+                      <div className="flex-1 min-w-0 overflow-hidden">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="text-sm font-semibold text-white break-words">{h.name}</h4>
+                          <h4 className="text-sm font-semibold text-white break-words truncate max-w-full">{h.name}</h4>
                           {h.isSweepIn && (
-                            <span className="text-[11px] font-medium text-emerald-400 shrink-0">
+                            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/40 px-1.5 py-0.5 rounded shrink-0">
                               Sweep-in
                             </span>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2 mt-1 text-xs text-slate-400 flex-wrap">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mt-1 text-xs text-slate-400 flex-wrap break-words max-w-full overflow-hidden">
                           {isMarket ? (
-                            <span>
+                            <span className="break-all xs:break-normal">
                               {h.units} units × {formatMoney(h.currentPrice || 0, h.currency, itemCurrSym)}
                             </span>
                           ) : (
-                            <span>Balance: {formatMoney(h.principalOrValue, h.currency, itemCurrSym)}</span>
+                            <span className="break-all xs:break-normal">Balance: {formatMoney(h.principalOrValue, h.currency, itemCurrSym)}</span>
                           )}
 
-                          <span className="text-slate-600">·</span>
-                          <span className="text-slate-400">{h.liquidityClass}</span>
+                          <span className="text-slate-600 shrink-0">·</span>
+                          <span className="text-slate-400 shrink-0">{h.liquidityClass}</span>
 
                           {isFixed && h.fixedRatePct !== undefined ? (
                             <>
-                              <span className="text-slate-600">·</span>
-                              <span className="font-mono text-[11px] text-emerald-400">
+                              <span className="text-slate-600 shrink-0">·</span>
+                              <span className="font-mono text-[11px] text-emerald-400 shrink-0">
                                 {h.fixedRatePct}% p.a.
                               </span>
                             </>
                           ) : !isFixed && h.expectedRatePct !== undefined && h.expectedRatePct !== null ? (
                             <>
-                              <span className="text-slate-600">·</span>
-                              <span className="text-slate-400 font-mono text-[11px]">
+                              <span className="text-slate-600 shrink-0">·</span>
+                              <span className="text-slate-400 font-mono text-[11px] shrink-0">
                                 ~{h.expectedRatePct}% p.a.
                               </span>
                             </>
@@ -292,8 +293,8 @@ export const AssetsView: React.FC = () => {
 
                           {h.marketCapCategory && (
                             <>
-                              <span className="text-slate-600">·</span>
-                              <span className="text-slate-400 capitalize">
+                              <span className="text-slate-600 shrink-0">·</span>
+                              <span className="text-slate-400 capitalize shrink-0">
                                 {h.marketCapCategory.replace('_', ' ')}
                               </span>
                             </>

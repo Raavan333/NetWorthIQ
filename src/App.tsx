@@ -23,6 +23,8 @@ import { GoalReadyNotificationModal } from './components/goals/GoalReadyNotifica
 import { NotificationCenterModal } from './components/common/NotificationCenterModal';
 import { ReceiveMoneyModal } from './components/common/ReceiveMoneyModal';
 import { HumanCapitalSkillCard } from './components/assets/HumanCapitalSkillCard';
+import { ReconciliationAuditModal } from './components/common/ReconciliationAuditModal';
+import { WhatIfSimulatorModal } from './components/simulator/WhatIfSimulatorModal';
 
 const MainLayout: React.FC = () => {
   const {
@@ -321,6 +323,16 @@ const MainLayout: React.FC = () => {
           isOpen={true}
           onClose={() => setActiveModal(null)}
         />
+      )}
+
+      {/* Global Audit Ledger Console */}
+      {activeModal === 'audit' && (
+        <ReconciliationAuditModal onClose={() => setActiveModal(null)} />
+      )}
+
+      {/* Global What-If Simulator */}
+      {activeModal === 'whatif' && (
+        <WhatIfSimulatorModal onClose={() => setActiveModal(null)} />
       )}
 
       {/* Immediate Notification when a Goal reaches 100% and is ready to use */}

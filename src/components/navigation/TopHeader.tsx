@@ -16,6 +16,7 @@ import {
   Lock,
   LogOut,
   GraduationCap,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const TopHeader: React.FC = () => {
@@ -110,6 +111,22 @@ export const TopHeader: React.FC = () => {
 
           {/* Quick desktop icons */}
           <div className="hidden sm:flex items-center gap-1">
+            <button
+              onClick={() => setActiveModal('audit')}
+              className="p-2 rounded-xl text-slate-400 hover:text-indigo-300 hover:bg-slate-800 transition-colors flex items-center gap-1.5 text-xs font-medium cursor-pointer"
+              title="Ledger Reconciliation & Invariance Audit"
+            >
+              <ShieldCheck size={16} className="text-indigo-400" />
+              <span>Audit</span>
+            </button>
+            <button
+              onClick={() => setActiveModal('whatif')}
+              className="p-2 rounded-xl text-slate-400 hover:text-blue-300 hover:bg-slate-800 transition-colors flex items-center gap-1.5 text-xs font-medium cursor-pointer"
+              title="Financial What-If Simulator"
+            >
+              <Sparkles size={16} className="text-blue-400" />
+              <span>What-If</span>
+            </button>
             <button
               onClick={() => setActiveModal('goals')}
               className="p-2 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-850 hover:bg-slate-800 transition-colors flex items-center gap-1.5 text-xs font-medium cursor-pointer"
@@ -209,6 +226,26 @@ export const TopHeader: React.FC = () => {
                         {notifications.filter((n) => !readNotificationIds[n.id]).length}
                       </span>
                     )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setActiveModal('audit');
+                    }}
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:text-indigo-300 hover:bg-slate-800 transition-colors cursor-pointer text-left"
+                  >
+                    <ShieldCheck size={17} className="text-indigo-400" />
+                    <span>Audit Ledger</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setActiveModal('whatif');
+                    }}
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:text-blue-300 hover:bg-slate-800 transition-colors cursor-pointer text-left"
+                  >
+                    <Sparkles size={17} className="text-blue-400" />
+                    <span>What-If Simulator</span>
                   </button>
                   <button
                     onClick={() => {

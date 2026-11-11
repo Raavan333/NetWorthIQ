@@ -734,7 +734,7 @@ export const SpendHistory: React.FC = () => {
       <div className="rounded-2xl border border-slate-800 bg-slate-900 p-3 space-y-2.5 shadow-sm">
         {/* Top Filter Row: Search, Date Preset, Type Selector, Actions */}
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 flex-1 min-w-[300px]">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 flex-1 min-w-0 w-full">
             {/* Search Input */}
             <div className="relative sm:col-span-4">
               <Search
