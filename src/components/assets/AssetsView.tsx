@@ -276,7 +276,7 @@ export const AssetsView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0">
           {/* Manage Portfolio Dropdown */}
           <div className="relative">
             <button
@@ -302,7 +302,7 @@ export const AssetsView: React.FC = () => {
                   className="fixed inset-0 z-30"
                   onClick={() => setIsActionsMenuOpen(false)}
                 />
-                <div className="absolute right-0 top-11 z-40 min-w-56 bg-slate-950 border border-slate-700/80 rounded-xl shadow-2xl p-1.5 flex flex-col gap-1 backdrop-blur-md animate-fade-in text-xs">
+                <div className="absolute left-0 sm:left-auto sm:right-0 top-11 z-40 min-w-56 max-w-[calc(100vw-1.5rem)] bg-slate-950 border border-slate-700/80 rounded-xl shadow-2xl p-1.5 flex flex-col gap-1 backdrop-blur-md animate-fade-in text-xs">
                   <button
                     type="button"
                     onClick={() => {
