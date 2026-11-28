@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { useBackDismiss } from '../../lib/modalBackStack';
 
 interface ModalProps {
   isOpen: boolean;
@@ -24,23 +25,18 @@ export const Modal: React.FC<ModalProps> = ({
   variant = 'default',
 }) => {
   const contentBodyRef = useRef<HTMLDivElement>(null);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+
+  useBackDismiss(isOpen, onClose);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCloseRef.current();
-    };
     if (isOpen) {
       document.body.style.overflow = 'hidden';
-      window.addEventListener('keydown', handleKeyDown);
       if (contentBodyRef.current) {
         contentBodyRef.current.scrollTop = 0;
       }
     }
     return () => {
       document.body.style.overflow = '';
-      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen]);
 
@@ -58,7 +54,7 @@ export const Modal: React.FC<ModalProps> = ({
       aria-modal="true"
     >
       <div
-        className={`w-full ${maxWidth || 'max-w-xl'} h-full sm:h-auto max-h-[100dvh] sm:max-h-[88vh] bg-slate-900 sm:rounded-2xl rounded-none flex flex-col relative overflow-hidden my-0 sm:my-auto transition-all duration-200 ${
+        className={`w-full ${maxWidth || 'max-w-xl'} h-full sm:h-auto max-h-[100dvh] sm:max-h-[88dvh] bg-slate-900 sm:rounded-2xl rounded-none flex flex-col relative overflow-hidden my-0 sm:my-auto transition-all duration-200 ${
           isDangerGlow
             ? 'border-2 border-rose-500 ring-4 ring-rose-500/45 shadow-[0_0_65px_rgba(244,63,94,0.85)]'
             : 'sm:border border-slate-800 shadow-2xl'
@@ -67,7 +63,7 @@ export const Modal: React.FC<ModalProps> = ({
       >
         {/* Pinned Sticky Header */}
         <div
-          className={`flex items-center justify-between px-4 sm:px-5 py-3 border-b shrink-0 z-30 transition-colors ${
+          className={`flex items-center justify-between px-4 sm:px-5 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:pt-3 border-b shrink-0 z-30 transition-colors ${
             isDangerGlow
               ? 'border-rose-500/60 bg-rose-950/75'
               : 'border-slate-800 bg-slate-900'
@@ -94,7 +90,7 @@ export const Modal: React.FC<ModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className={`w-8 h-8 rounded-lg active:scale-95 flex items-center justify-center transition-colors shrink-0 cursor-pointer ${
+            className={`min-w-[44px] min-h-[44px] sm:min-w-[36px] sm:min-h-[36px] rounded-xl active:scale-95 flex items-center justify-center transition-colors shrink-0 cursor-pointer ${
               isDangerGlow
                 ? 'bg-rose-900/70 hover:bg-rose-800 text-rose-100'
                 : 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-100'

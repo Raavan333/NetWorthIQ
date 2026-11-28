@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "tsx tests/financialCalculations.test.ts",
+    "test": "tsx tests/financialCalculations.test.ts && tsx tests/offlineAndSecurity.test.ts",
     "cap:sync": "cap sync",
     "cap:build": "npm run build && cap sync"
   },

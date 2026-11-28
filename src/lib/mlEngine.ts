@@ -103,9 +103,14 @@ const DEFAULT_RL_WEIGHTS: RLModelWeights = {
 export function getStoredCreditWeights(): CreditModelWeights {
   try {
     const raw = localStorage.getItem(CREDIT_MODEL_STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    // fallback
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return { ...DEFAULT_CREDIT_WEIGHTS, ...parsed };
+      }
+    }
+  } catch {
+    // fallback to defaults
   }
   return { ...DEFAULT_CREDIT_WEIGHTS };
 }
@@ -121,9 +126,25 @@ export function saveCreditWeights(weights: CreditModelWeights): void {
 export function getStoredRLWeights(): RLModelWeights {
   try {
     const raw = localStorage.getItem(RL_POLICY_STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    // fallback
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return {
+          ...DEFAULT_RL_WEIGHTS,
+          ...parsed,
+          policyWeights: {
+            ...DEFAULT_RL_WEIGHTS.policyWeights,
+            ...(parsed.policyWeights &&
+            typeof parsed.policyWeights === 'object' &&
+            !Array.isArray(parsed.policyWeights)
+              ? parsed.policyWeights
+              : {}),
+          },
+        };
+      }
+    }
+  } catch {
+    // fallback to defaults
   }
   return { ...DEFAULT_RL_WEIGHTS };
 }

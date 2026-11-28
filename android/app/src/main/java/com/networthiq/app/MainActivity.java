@@ -1,10 +1,9 @@
 package com.networthiq.app;
 
 import android.os.Bundle;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.webkit.DownloadListener;
-import android.content.Intent;
-import android.net.Uri;
+import androidx.activity.OnBackPressedCallback;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -12,24 +11,35 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(SmsReaderPlugin.class);
         super.onCreate(savedInstanceState);
+
         try {
             WebView webView = this.getBridge().getWebView();
             if (webView != null) {
-                webView.setDownloadListener(new DownloadListener() {
-                    @Override
-                    public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimetype, long contentLength) {
-                        try {
-                            if (url != null && (url.startsWith("http://") || url.startsWith("https://"))) {
-                                Intent intent = new Intent(Intent.ACTION_VIEW);
-                                intent.setData(Uri.parse(url));
-                                startActivity(intent);
-                            }
-                        } catch (Exception ignored) {
-                        }
-                    }
-                });
+                WebSettings settings = webView.getSettings();
+                settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+                // Strictly offline: do not launch external URLs from WebView downloads
+                webView.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {});
             }
         } catch (Exception ignored) {
         }
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                WebView webView = getBridge() != null ? getBridge().getWebView() : null;
+                if (webView == null) {
+                    moveTaskToBack(true);
+                    return;
+                }
+                webView.evaluateJavascript(
+                    "(function(){return typeof window.__networthiqHandleBack==='function'?window.__networthiqHandleBack():'exit';})()",
+                    result -> {
+                        if (result == null || !result.contains("handled")) {
+                            moveTaskToBack(true);
+                        }
+                    }
+                );
+            }
+        });
     }
 }

@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { formatMoney } from '../../lib/formatters';
 import { downloadFile } from '../../lib/downloadHelper';
 import { formatLastDigitsDisplay } from '../../lib/smsEngine';
+import { useBackDismiss } from '../../lib/modalBackStack';
 import {
   ShieldCheck,
   AlertTriangle,
@@ -53,6 +54,8 @@ export const ReconciliationAuditModal: React.FC<ReconciliationAuditModalProps> =
   const [directionFilter, setDirectionFilter] = useState<'all' | 'inflow' | 'outflow'>('all');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
+
+  useBackDismiss(true, onClose);
 
   const selectedHolding = holdings.find((h) => h.id === selectedId) || holdings[0];
   const recon = selectedHolding ? reconcileHoldingBalance(selectedHolding.id) : null;
@@ -154,10 +157,18 @@ export const ReconciliationAuditModal: React.FC<ReconciliationAuditModalProps> =
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-3 md:p-6 bg-black/85 backdrop-blur-md animate-fade-in">
-      <div className="w-full h-full sm:h-[90vh] max-w-5xl bg-slate-900 border-0 sm:border sm:border-slate-800 sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-100">
+    <div
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-3 md:p-6 bg-black/85 backdrop-blur-md animate-fade-in"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full h-full sm:h-[90dvh] max-w-5xl bg-slate-900 border-0 sm:border sm:border-slate-800 sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-100 safe-area-pt safe-area-pb sm:pt-0 sm:pb-0"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-800 bg-slate-900/90 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-800 bg-slate-900/90 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="p-2 sm:p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">
               <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -188,16 +199,18 @@ export const ReconciliationAuditModal: React.FC<ReconciliationAuditModalProps> =
 
           <div className="flex items-center gap-2 shrink-0 ml-2">
             <button
+              type="button"
               onClick={handleExportAuditCsv}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition-colors cursor-pointer border border-slate-700"
+              className="hidden sm:flex items-center gap-1.5 px-3 min-h-[44px] rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition-colors cursor-pointer border border-slate-700"
               title="Download CSV audit report for this account"
             >
               <Download size={13} className="text-indigo-400" />
               <span>Export Audit</span>
             </button>
             <button
+              type="button"
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
               aria-label="Close"
             >
               <X size={20} />
@@ -433,22 +446,23 @@ export const ReconciliationAuditModal: React.FC<ReconciliationAuditModalProps> =
                 </div>
 
                 {/* Filters */}
-                <div className="flex items-center gap-1.5 self-start sm:self-auto">
-                  <div className="relative">
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                  <div className="relative flex-1 min-w-[140px] sm:flex-initial">
                     <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
                     <input
                       type="text"
                       placeholder="Search transactions..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-7 pr-2.5 py-1 text-xs bg-slate-950 border border-slate-800 rounded-lg text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 w-36 sm:w-44"
+                      className="pl-7 pr-2.5 py-2 text-xs bg-slate-950 border border-slate-800 rounded-lg text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 w-full sm:w-44"
                     />
                   </div>
 
-                  <div className="flex bg-slate-950 border border-slate-800 rounded-lg p-0.5">
+                  <div className="flex bg-slate-950 border border-slate-800 rounded-lg p-0.5 shrink-0">
                     <button
+                      type="button"
                       onClick={() => setDirectionFilter('all')}
-                      className={`px-2 py-0.5 text-[10px] font-semibold rounded-md transition-colors ${
+                      className={`px-2.5 py-1.5 text-[11px] font-semibold rounded-md transition-colors cursor-pointer ${
                         directionFilter === 'all'
                           ? 'bg-slate-800 text-slate-100 shadow-xs'
                           : 'text-slate-400 hover:text-slate-200'
@@ -457,8 +471,9 @@ export const ReconciliationAuditModal: React.FC<ReconciliationAuditModalProps> =
                       All
                     </button>
                     <button
+                      type="button"
                       onClick={() => setDirectionFilter('inflow')}
-                      className={`px-2 py-0.5 text-[10px] font-semibold rounded-md transition-colors ${
+                      className={`px-2.5 py-1.5 text-[11px] font-semibold rounded-md transition-colors cursor-pointer ${
                         directionFilter === 'inflow'
                           ? 'bg-emerald-950/80 text-emerald-300 shadow-xs'
                           : 'text-slate-400 hover:text-slate-200'
@@ -467,8 +482,9 @@ export const ReconciliationAuditModal: React.FC<ReconciliationAuditModalProps> =
                       Inflows
                     </button>
                     <button
+                      type="button"
                       onClick={() => setDirectionFilter('outflow')}
-                      className={`px-2 py-0.5 text-[10px] font-semibold rounded-md transition-colors ${
+                      className={`px-2.5 py-1.5 text-[11px] font-semibold rounded-md transition-colors cursor-pointer ${
                         directionFilter === 'outflow'
                           ? 'bg-rose-950/80 text-rose-300 shadow-xs'
                           : 'text-slate-400 hover:text-slate-200'
@@ -481,7 +497,7 @@ export const ReconciliationAuditModal: React.FC<ReconciliationAuditModalProps> =
               </div>
 
               {/* Transactions List */}
-              <div className="rounded-xl border border-slate-800 bg-slate-950 divide-y divide-slate-850 overflow-hidden max-h-[460px] overflow-y-auto">
+              <div className="rounded-xl border border-slate-800 bg-slate-950 divide-y divide-slate-800 overflow-hidden max-h-[460px] overflow-y-auto">
                 {filteredTransactions.length === 0 ? (
                   <div className="p-8 text-center space-y-2">
                     <p className="text-xs text-slate-400">
@@ -569,15 +585,17 @@ export const ReconciliationAuditModal: React.FC<ReconciliationAuditModalProps> =
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <button
+              type="button"
               onClick={handleExportAuditCsv}
-              className="sm:hidden flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition-colors cursor-pointer border border-slate-700 flex-1"
+              className="sm:hidden flex items-center justify-center gap-1.5 px-3 min-h-[44px] rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition-colors cursor-pointer border border-slate-700 flex-1"
             >
               <Download size={13} className="text-indigo-400" />
               <span>Export CSV</span>
             </button>
             <button
+              type="button"
               onClick={onClose}
-              className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors cursor-pointer border border-slate-700 flex-1 sm:flex-none text-center"
+              className="px-5 min-h-[44px] rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors cursor-pointer border border-slate-700 flex-1 sm:flex-none text-center"
             >
               Done
             </button>

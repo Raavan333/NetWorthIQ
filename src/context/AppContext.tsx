@@ -104,10 +104,11 @@ import {
   DEFAULT_QUICK_CHIPS,
   DEFAULT_SETTINGS,
   DEFAULT_SPEND_CATEGORIES,
+  DEFAULT_SUBCONSCIOUS_NUDGE_PREFS,
   DEFAULT_TAX_RULES,
   THEME_PRESETS,
 } from '../lib/defaults';
-import { dbStorage } from '../lib/storage';
+import { dbStorage, safeJsonParse, sanitizeObjectArray } from '../lib/storage';
 import {
   calculateFinancialEngine,
   EngineCalculationResult,
@@ -506,6 +507,8 @@ interface AppContextType {
   wipeAllData: () => Promise<void>;
   importFullBackup: (jsonString: string) => Promise<boolean>;
   exportFullBackup: () => string;
+  storageRecoveryNotice: string | null;
+  dismissStorageRecoveryNotice: () => void;
   restoreMasterEntities: (
     payload: {
       holdings?: Holding[];
@@ -532,9 +535,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       if (typeof window !== 'undefined') {
         const cached = localStorage.getItem('networthiq_theme');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed && parsed.colors) return parsed;
+        const parsed = safeJsonParse<Partial<AppTheme> | null>(cached, null);
+        if (parsed && parsed.colors && typeof parsed.colors === 'object') {
+          return {
+            ...THEME_PRESETS[0],
+            ...parsed,
+            colors: { ...THEME_PRESETS[0].colors, ...parsed.colors },
+          };
         }
       }
     } catch {}
@@ -575,15 +582,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [snoozedInsights, setSnoozedInsights] = useState<Record<string, string>>({});
   const [dismissedNotifications, setDismissedNotifications] = useState<Record<string, boolean | number>>(() => {
     try {
-      const raw = localStorage.getItem('networthiq_dismissed_notifications');
-      if (raw) return JSON.parse(raw);
+      return safeJsonParse<Record<string, boolean | number>>(
+        localStorage.getItem('networthiq_dismissed_notifications'),
+        {}
+      );
     } catch {}
     return {};
   });
   const [dismissedAttentionItems, setDismissedAttentionItems] = useState<Record<string, boolean | number>>(() => {
     try {
-      const raw = localStorage.getItem('networthiq_dismissed_attention');
-      if (raw) return JSON.parse(raw);
+      return safeJsonParse<Record<string, boolean | number>>(
+        localStorage.getItem('networthiq_dismissed_attention'),
+        {}
+      );
     } catch {}
     return {};
   });
@@ -595,11 +606,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [quickChips, setQuickChips] = useState<QuickSpendChip[]>(DEFAULT_QUICK_CHIPS);
   const [overriddenAutoBills, setOverriddenAutoBills] = useState<Record<string, string>>(() => {
     try {
-      const stored = localStorage.getItem('networthiq_auto_bill_overrides');
-      if (stored) return JSON.parse(stored);
+      return safeJsonParse<Record<string, string>>(
+        localStorage.getItem('networthiq_auto_bill_overrides'),
+        {}
+      );
     } catch {}
     return {};
   });
+  const [storageRecoveryNotice, setStorageRecoveryNotice] = useState<string | null>(null);
+  const dismissStorageRecoveryNotice = () => setStorageRecoveryNotice(null);
 
   const [activeTab, setActiveTab] = useState<'home' | 'assets' | 'liabilities' | 'spend' | 'insights'>('home');
   const [activeModal, setActiveModal] = useState<string | null>(null);
@@ -684,49 +699,97 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           checkStandaloneSmsPermission(),
         ]);
 
-        if (storedHoldings) commitHoldings(storedHoldings);
-        if (storedLiabilities) commitLiabilities(storedLiabilities);
-        if (storedIncome) setIncomeStreams(storedIncome);
-        if (storedTxs) commitTransactions(storedTxs);
-        if (storedBills) setBills(storedBills);
-        if (storedGoals) setGoals(storedGoals);
-        if (storedSales) setSales(storedSales);
-        if (storedSnapshots) setSnapshots(storedSnapshots);
-        if (storedTransfers) setScheduledTransfers(storedTransfers);
-        if (storedScores) setCreditScores(storedScores);
-        if (storedCategories && storedCategories.length > 0) {
-          const cleaned = dedupeSpendCategories(storedCategories);
+        const safeHoldings = sanitizeObjectArray<Holding>(storedHoldings, 'id');
+        const safeLiabilities = sanitizeObjectArray<Liability>(storedLiabilities, 'id');
+        const safeIncome = sanitizeObjectArray<IncomeStream>(storedIncome, 'id');
+        const safeTxs = sanitizeObjectArray<Transaction>(storedTxs, 'id');
+        const safeBills = sanitizeObjectArray<Bill>(storedBills, 'id');
+        const safeGoals = sanitizeObjectArray<Goal>(storedGoals, 'id');
+        const safeSales = sanitizeObjectArray<SaleRecord>(storedSales, 'id');
+        const safeSnapshots = sanitizeObjectArray<Snapshot>(storedSnapshots, 'id');
+        const safeTransfers = sanitizeObjectArray<ScheduledTransfer>(storedTransfers, 'id');
+        const safeScores = sanitizeObjectArray<CreditScoreRecord>(storedScores, 'id');
+        const safeCategories = sanitizeObjectArray<SpendCategoryConfig>(storedCategories, 'id');
+        const safeChips = sanitizeObjectArray<QuickSpendChip>(storedChips, 'id');
+        const safeReceivables = sanitizeObjectArray<Receivable>(storedReceivables, 'id');
+        const safeSmsOverrides = sanitizeObjectArray<SmsRuleOverride>(storedSmsOverrides, 'id');
+        const safeSmsStaging = sanitizeObjectArray<StagedSmsItem>(storedSmsStaging, 'id');
+        const safeCurrencies = sanitizeObjectArray<Currency>(storedCurrencies, 'code');
+        const safeAssetTypes = sanitizeObjectArray<AssetType>(storedAssetTypes, 'id');
+
+        commitHoldings(safeHoldings);
+        commitLiabilities(safeLiabilities);
+        setIncomeStreams(safeIncome);
+        commitTransactions(safeTxs);
+        setBills(safeBills);
+        setGoals(safeGoals);
+        setSales(safeSales);
+        setSnapshots(safeSnapshots);
+        setScheduledTransfers(safeTransfers);
+        setCreditScores(safeScores);
+        if (safeCategories.length > 0) {
+          const cleaned = dedupeSpendCategories(safeCategories);
           setSpendCategories(cleaned);
-          if (cleaned.length !== storedCategories.length) {
+          if (cleaned.length !== safeCategories.length) {
             dbStorage.setAll('spendCategories', cleaned);
           }
         }
-        if (storedChips && storedChips.length > 0) {
-          const cleaned = dedupeQuickChips(storedChips);
+        if (safeChips.length > 0) {
+          const cleaned = dedupeQuickChips(safeChips);
           setQuickChips(cleaned);
-          if (cleaned.length !== storedChips.length) {
+          if (cleaned.length !== safeChips.length) {
             dbStorage.setAll('quickChips', cleaned);
           }
         }
-        if (storedReceivables) setReceivables(storedReceivables);
-        if (storedSmsOverrides) commitSmsRuleOverrides(storedSmsOverrides);
-        if (storedSmsStaging) commitSmsStagingQueue(storedSmsStaging);
+        setReceivables(safeReceivables);
+        commitSmsRuleOverrides(safeSmsOverrides);
+        commitSmsStagingQueue(safeSmsStaging);
         if (detectedSmsPerm) setSmsPermissionStatus(detectedSmsPerm);
 
-        if (storedSettings) setSettingsState(storedSettings);
-        if (storedTheme) {
-          setThemeState(storedTheme);
+        const mergedSettings: AppSettings =
+          storedSettings && typeof storedSettings === 'object'
+            ? {
+                ...DEFAULT_SETTINGS,
+                ...storedSettings,
+                subconsciousNudgePrefs: {
+                  ...(DEFAULT_SETTINGS.subconsciousNudgePrefs ?? DEFAULT_SUBCONSCIOUS_NUDGE_PREFS),
+                  ...(storedSettings.subconsciousNudgePrefs &&
+                  typeof storedSettings.subconsciousNudgePrefs === 'object' &&
+                  !Array.isArray(storedSettings.subconsciousNudgePrefs)
+                    ? storedSettings.subconsciousNudgePrefs
+                    : {}),
+                },
+              }
+            : DEFAULT_SETTINGS;
+        setSettingsState(mergedSettings);
+
+        if (storedTheme && typeof storedTheme === 'object' && storedTheme.colors) {
+          const safeTheme: AppTheme = {
+            ...THEME_PRESETS[0],
+            ...storedTheme,
+            colors: { ...THEME_PRESETS[0].colors, ...storedTheme.colors },
+          };
+          setThemeState(safeTheme);
           try {
-            localStorage.setItem('networthiq_theme', JSON.stringify(storedTheme));
+            localStorage.setItem('networthiq_theme', JSON.stringify(safeTheme));
           } catch {}
         }
-        if (storedCurrencies && storedCurrencies.length > 0) setCurrencies(storedCurrencies);
-        if (storedAssetTypes && storedAssetTypes.length > 0) setAssetTypes(storedAssetTypes);
-        if (storedTaxRules) setTaxRulesState(storedTaxRules);
+        if (safeCurrencies.length > 0) setCurrencies(safeCurrencies);
+        if (safeAssetTypes.length > 0) setAssetTypes(safeAssetTypes);
+        if (storedTaxRules && typeof storedTaxRules === 'object') {
+          setTaxRulesState({ ...DEFAULT_TAX_RULES, ...storedTaxRules });
+        }
+
+        const recoveryCount = dbStorage.consumeRecoveryCount();
+        if (recoveryCount > 0) {
+          setStorageRecoveryNotice(
+            `Recovered cleanly from ${recoveryCount} corrupted local cache ${recoveryCount === 1 ? 'entry' : 'entries'}. Valid ledger data remains intact.`
+          );
+        }
 
         // Strict lock enforcement: ALWAYS require PIN on launch/reload unless security is explicitly disabled
         try {
-          if (storedSettings?.pinLockEnabled === false) {
+          if (mergedSettings.pinLockEnabled === false) {
             setIsLocked(false);
             localStorage.setItem('networthiq_vault_locked', 'false');
           } else {
@@ -738,6 +801,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       } catch (err) {
         console.error('Storage initialization error:', err);
+        setStorageRecoveryNotice('Local storage experienced a read error; safe defaults were loaded.');
       } finally {
         setIsInitialized(true);
       }
@@ -1309,8 +1373,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } | null = null;
 
     try {
-      const raw = localStorage.getItem(CONTINUOUS_ENGINE_KEY);
-      if (raw) storedAnchor = JSON.parse(raw);
+      storedAnchor = safeJsonParse<typeof storedAnchor>(localStorage.getItem(CONTINUOUS_ENGINE_KEY), null);
     } catch {}
 
     // Check if stored anchor base matches current calculated portfolio base
@@ -1434,9 +1497,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const persistInterval = setInterval(() => {
       const now = Date.now();
       try {
-        const raw = localStorage.getItem(CONTINUOUS_ENGINE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
+        const parsed = safeJsonParse<Record<string, any> | null>(localStorage.getItem(CONTINUOUS_ENGINE_KEY), null);
+        if (parsed) {
           parsed.lastActiveTimestamp = now;
           parsed.ratePerSecond = baselineRef.current.perSecond;
           localStorage.setItem(CONTINUOUS_ENGINE_KEY, JSON.stringify(parsed));
@@ -1456,9 +1518,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // App is entering background, screen turning off, or tab switching
         backgroundEnteredAtRef.current = now;
         try {
-          const raw = localStorage.getItem(CONTINUOUS_ENGINE_KEY);
-          if (raw) {
-            const parsed = JSON.parse(raw);
+          const parsed = safeJsonParse<Record<string, any> | null>(localStorage.getItem(CONTINUOUS_ENGINE_KEY), null);
+          if (parsed) {
             parsed.lastActiveTimestamp = now;
             parsed.ratePerSecond = baselineRef.current.perSecond;
             localStorage.setItem(CONTINUOUS_ENGINE_KEY, JSON.stringify(parsed));
@@ -1469,12 +1530,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         let lastKnownActive = backgroundEnteredAtRef.current;
         if (!lastKnownActive) {
           try {
-            const raw = localStorage.getItem(CONTINUOUS_ENGINE_KEY);
-            if (raw) {
-              const parsed = JSON.parse(raw);
-              if (parsed.lastActiveTimestamp) {
-                lastKnownActive = parsed.lastActiveTimestamp;
-              }
+            const parsed = safeJsonParse<Record<string, any> | null>(localStorage.getItem(CONTINUOUS_ENGINE_KEY), null);
+            if (parsed?.lastActiveTimestamp) {
+              lastKnownActive = parsed.lastActiveTimestamp;
             }
           } catch {}
         }
@@ -1499,9 +1557,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setClockTick(now);
 
         try {
-          const raw = localStorage.getItem(CONTINUOUS_ENGINE_KEY);
-          if (raw) {
-            const parsed = JSON.parse(raw);
+          const parsed = safeJsonParse<Record<string, any> | null>(localStorage.getItem(CONTINUOUS_ENGINE_KEY), null);
+          if (parsed) {
             parsed.lastActiveTimestamp = now;
             parsed.ratePerSecond = baselineRef.current.perSecond;
             localStorage.setItem(CONTINUOUS_ENGINE_KEY, JSON.stringify(parsed));
@@ -2037,8 +2094,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Tune ML model based on user payment fidelity & cashback yield
     try {
       const mlKey = 'networthiq_ml_investment_weights';
-      const stored = localStorage.getItem(mlKey);
-      const currentWeights = stored ? JSON.parse(stored) : { debtPayoffWeight: 40, iteration: 1 };
+      const currentWeights = safeJsonParse<Record<string, any>>(
+        localStorage.getItem(mlKey),
+        { debtPayoffWeight: 40, iteration: 1 }
+      );
       const paymentRatio = billedAmt > 0 ? actualPaidAmount / Math.max(1, billedAmt - cashbackToApply) : 1.0;
 
       const newDebtWeight = Math.min(85, Math.max(20, (currentWeights.debtPayoffWeight || 40) + (paymentRatio >= 0.99 ? 2 : -2)));
@@ -4541,8 +4600,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     let overrideHistory: BillOverrideHistoryItem[] = [];
     try {
-      const stored = localStorage.getItem(OVERRIDES_STORAGE_KEY);
-      if (stored) overrideHistory = JSON.parse(stored);
+      overrideHistory = safeJsonParse<BillOverrideHistoryItem[]>(localStorage.getItem(OVERRIDES_STORAGE_KEY), []);
     } catch {}
 
     const now = Date.now();
@@ -4571,7 +4629,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     try {
       const autoOverridesKey = 'networthiq_auto_bill_overrides';
-      const storedMap = JSON.parse(localStorage.getItem(autoOverridesKey) || '{}');
+      const storedMap = safeJsonParse<Record<string, string>>(localStorage.getItem(autoOverridesKey), {});
       storedMap[billId] = currentMonthStr;
       localStorage.setItem(autoOverridesKey, JSON.stringify(storedMap));
     } catch {}
@@ -4614,11 +4672,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 5. Clean behavioral feedback audit log (without distorting artificial weights or buffers)
     try {
       const ML_FEEDBACK_KEY = 'networthiq_ml_feedback_log';
-      let feedbackLog: any[] = [];
-      try {
-        const storedLog = localStorage.getItem(ML_FEEDBACK_KEY);
-        if (storedLog) feedbackLog = JSON.parse(storedLog);
-      } catch {}
+      const feedbackLog = safeJsonParse<any[]>(localStorage.getItem(ML_FEEDBACK_KEY), []);
       feedbackLog.push({
         id: `ml-fb-override-${Date.now()}`,
         timestamp: new Date().toISOString(),
@@ -4645,7 +4699,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     try {
       const autoOverridesKey = 'networthiq_auto_bill_overrides';
-      const storedMap = JSON.parse(localStorage.getItem(autoOverridesKey) || '{}');
+      const storedMap = safeJsonParse<Record<string, string>>(localStorage.getItem(autoOverridesKey), {});
       delete storedMap[billId];
       localStorage.setItem(autoOverridesKey, JSON.stringify(storedMap));
     } catch {}
@@ -6681,97 +6735,125 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const importFullBackup = async (jsonString: string): Promise<boolean> => {
     try {
       const data = JSON.parse(jsonString);
-      if (!data || typeof data !== 'object') return false;
+      if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
 
-      if (data.settings) {
-        setSettingsState(data.settings);
-        await dbStorage.setSingleton('settings', data.settings);
+      if (data.settings && typeof data.settings === 'object' && !Array.isArray(data.settings)) {
+        const nextSettings = { ...DEFAULT_SETTINGS, ...data.settings };
+        setSettingsState(nextSettings);
+        await dbStorage.setSingleton('settings', nextSettings);
       }
-      if (data.theme) {
-        setThemeState(data.theme);
-        await dbStorage.setSingleton('theme', data.theme);
+      if (data.theme && typeof data.theme === 'object' && data.theme.colors) {
+        const nextTheme = {
+          ...THEME_PRESETS[0],
+          ...data.theme,
+          colors: { ...THEME_PRESETS[0].colors, ...data.theme.colors },
+        };
+        setThemeState(nextTheme);
+        await dbStorage.setSingleton('theme', nextTheme);
       }
-      if (data.currencies) {
-        setCurrencies(data.currencies);
-        await dbStorage.setAll('currencies', data.currencies);
+      if (Array.isArray(data.currencies)) {
+        const cleaned = sanitizeObjectArray<Currency>(data.currencies, 'code');
+        if (cleaned.length > 0) {
+          setCurrencies(cleaned);
+          await dbStorage.setAll('currencies', cleaned);
+        }
       }
-      if (data.assetTypes) {
-        setAssetTypes(data.assetTypes);
-        await dbStorage.setAll('assetTypes', data.assetTypes);
+      if (Array.isArray(data.assetTypes)) {
+        const cleaned = sanitizeObjectArray<AssetType>(data.assetTypes, 'id');
+        if (cleaned.length > 0) {
+          setAssetTypes(cleaned);
+          await dbStorage.setAll('assetTypes', cleaned);
+        }
       }
-      if (data.holdings) {
-        commitHoldings(data.holdings);
-        await dbStorage.setAll('holdings', data.holdings);
+      if (Array.isArray(data.holdings)) {
+        const cleaned = sanitizeObjectArray<Holding>(data.holdings, 'id');
+        commitHoldings(cleaned);
+        await dbStorage.setAll('holdings', cleaned);
       }
-      if (data.liabilities) {
-        commitLiabilities(data.liabilities);
-        await dbStorage.setAll('liabilities', data.liabilities);
+      if (Array.isArray(data.liabilities)) {
+        const cleaned = sanitizeObjectArray<Liability>(data.liabilities, 'id');
+        commitLiabilities(cleaned);
+        await dbStorage.setAll('liabilities', cleaned);
       }
-      if (data.transactions) {
-        commitTransactions(data.transactions);
-        await dbStorage.setAll('transactions', data.transactions);
+      if (Array.isArray(data.transactions)) {
+        const cleaned = sanitizeObjectArray<Transaction>(data.transactions, 'id');
+        commitTransactions(cleaned);
+        await dbStorage.setAll('transactions', cleaned);
       }
-      if (data.incomeStreams) {
-        setIncomeStreams(data.incomeStreams);
-        await dbStorage.setAll('incomeStreams', data.incomeStreams);
+      if (Array.isArray(data.incomeStreams)) {
+        const cleaned = sanitizeObjectArray<IncomeStream>(data.incomeStreams, 'id');
+        setIncomeStreams(cleaned);
+        await dbStorage.setAll('incomeStreams', cleaned);
       }
-      if (data.bills) {
-        setBills(data.bills);
-        await dbStorage.setAll('bills', data.bills);
+      if (Array.isArray(data.bills)) {
+        const cleaned = sanitizeObjectArray<Bill>(data.bills, 'id');
+        setBills(cleaned);
+        await dbStorage.setAll('bills', cleaned);
       }
-      if (data.goals) {
-        setGoals(data.goals);
-        await dbStorage.setAll('goals', data.goals);
+      if (Array.isArray(data.goals)) {
+        const cleaned = sanitizeObjectArray<Goal>(data.goals, 'id');
+        setGoals(cleaned);
+        await dbStorage.setAll('goals', cleaned);
       }
-      if (data.sales) {
-        setSales(data.sales);
-        await dbStorage.setAll('sales', data.sales);
+      if (Array.isArray(data.sales)) {
+        const cleaned = sanitizeObjectArray<SaleRecord>(data.sales, 'id');
+        setSales(cleaned);
+        await dbStorage.setAll('sales', cleaned);
       }
-      if (data.taxRules) {
-        setTaxRulesState(data.taxRules);
-        await dbStorage.setSingleton('taxRules', data.taxRules);
+      if (data.taxRules && typeof data.taxRules === 'object' && !Array.isArray(data.taxRules)) {
+        const nextTaxRules = { ...DEFAULT_TAX_RULES, ...data.taxRules };
+        setTaxRulesState(nextTaxRules);
+        await dbStorage.setSingleton('taxRules', nextTaxRules);
       }
-      if (data.snapshots) {
-        setSnapshots(data.snapshots);
-        await dbStorage.setAll('snapshots', data.snapshots);
+      if (Array.isArray(data.snapshots)) {
+        const cleaned = sanitizeObjectArray<Snapshot>(data.snapshots, 'id');
+        setSnapshots(cleaned);
+        await dbStorage.setAll('snapshots', cleaned);
       }
-      if (data.scheduledTransfers) {
-        setScheduledTransfers(data.scheduledTransfers);
-        await dbStorage.setAll('scheduledTransfers', data.scheduledTransfers);
+      if (Array.isArray(data.scheduledTransfers)) {
+        const cleaned = sanitizeObjectArray<ScheduledTransfer>(data.scheduledTransfers, 'id');
+        setScheduledTransfers(cleaned);
+        await dbStorage.setAll('scheduledTransfers', cleaned);
       }
-      if (data.creditScores) {
-        setCreditScores(data.creditScores);
-        await dbStorage.setAll('creditScores', data.creditScores);
+      if (Array.isArray(data.creditScores)) {
+        const cleaned = sanitizeObjectArray<CreditScoreRecord>(data.creditScores, 'id');
+        setCreditScores(cleaned);
+        await dbStorage.setAll('creditScores', cleaned);
       }
-      if (data.spendCategories) {
-        const cleaned = dedupeSpendCategories(data.spendCategories);
+      if (Array.isArray(data.spendCategories)) {
+        const cleaned = dedupeSpendCategories(sanitizeObjectArray<SpendCategoryConfig>(data.spendCategories, 'id'));
         setSpendCategories(cleaned);
         await dbStorage.setAll('spendCategories', cleaned);
       }
-      if (data.quickChips) {
-        const cleaned = dedupeQuickChips(data.quickChips);
+      if (Array.isArray(data.quickChips)) {
+        const cleaned = dedupeQuickChips(sanitizeObjectArray<QuickSpendChip>(data.quickChips, 'id'));
         setQuickChips(cleaned);
         await dbStorage.setAll('quickChips', cleaned);
       }
-      if (data.receivables) {
-        setReceivables(data.receivables);
-        await dbStorage.setAll('receivables', data.receivables);
+      if (Array.isArray(data.receivables)) {
+        const cleaned = sanitizeObjectArray<Receivable>(data.receivables, 'id');
+        setReceivables(cleaned);
+        await dbStorage.setAll('receivables', cleaned);
       }
 
       // Backward-compatible Schema v4 restore (supports v1, v2, v3, and v4 archives; defaults SMS stores to [] if absent)
-      const incomingOverrides: SmsRuleOverride[] =
+      const incomingOverrides = sanitizeObjectArray<SmsRuleOverride>(
         data.sms_rule_overrides ||
-        data.smsRuleOverrides ||
-        data.mlReplicationState?.smsRuleOverrides ||
-        [];
+          data.smsRuleOverrides ||
+          data.mlReplicationState?.smsRuleOverrides ||
+          [],
+        'id'
+      );
       commitSmsRuleOverrides(incomingOverrides);
       await dbStorage.setAll('sms_rule_overrides', incomingOverrides);
 
-      const incomingStaging: StagedSmsItem[] =
+      const incomingStaging = sanitizeObjectArray<StagedSmsItem>(
         data.sms_staging_queue ||
-        data.smsStagingQueue ||
-        data.mlReplicationState?.smsStagingQueue ||
-        [];
+          data.smsStagingQueue ||
+          data.mlReplicationState?.smsStagingQueue ||
+          [],
+        'id'
+      );
       commitSmsStagingQueue(incomingStaging);
       await dbStorage.setAll('sms_staging_queue', incomingStaging);
 
@@ -6877,6 +6959,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         unlockApp,
         lockApp,
         logoutApp,
+        storageRecoveryNotice,
+        dismissStorageRecoveryNotice,
 
         updateSettings,
         updateTheme,

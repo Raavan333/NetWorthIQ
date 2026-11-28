@@ -10,6 +10,8 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overscroll-behavior-y: none;
+    overflow-x: hidden;
+    max-width: 100%;
   }
 
   input[type="date"] {
@@ -105,8 +107,17 @@
   animation: pulseSlow 3s ease-in-out infinite;
 }
 
+.safe-area-pt {
+  padding-top: max(0.625rem, env(safe-area-inset-top, 0.625rem));
+}
+
 .safe-area-pb {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem));
+}
+
+.safe-area-px {
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0.75rem));
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0.75rem));
 }
 
 /* Custom scrollbars */

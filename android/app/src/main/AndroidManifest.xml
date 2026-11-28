@@ -16,6 +16,7 @@
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize"
             android:exported="true">
 
             <intent-filter>
@@ -36,9 +37,8 @@
         </provider>
     </application>
 
-    <!-- Permissions -->
+    <!-- Permissions (Strictly Offline: zero INTERNET permission) -->
 
-    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-feature android:name="android.hardware.telephony" android:required="false" />

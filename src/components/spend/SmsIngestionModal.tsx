@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { isNativeAndroidSmsSupported } from '../../lib/smsBridge';
 import { formatMoney } from '../../lib/formatters';
 import { SmsParsedTxKind } from '../../types';
+import { useBackDismiss } from '../../lib/modalBackStack';
 import {
   X,
   MessageSquareText,
@@ -56,6 +57,9 @@ export const SmsIngestionModal: React.FC<SmsIngestionModalProps> = ({ isOpen, on
   const [categorySelections, setCategorySelections] = useState<Record<string, string>>({});
   const [dateSelections, setDateSelections] = useState<Record<string, string>>({});
   const [amountSelections, setAmountSelections] = useState<Record<string, string>>({});
+  const [confirmDeleteRuleId, setConfirmDeleteRuleId] = useState<string | null>(null);
+
+  useBackDismiss(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -185,19 +189,27 @@ export const SmsIngestionModal: React.FC<SmsIngestionModalProps> = ({ isOpen, on
   const baseSym = currencies.find((c) => c.code === baseCurr)?.symbol || '₹';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
-      <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-fade-in flex flex-col max-h-[88vh]">
+    <div
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-fade-in flex flex-col max-h-[90dvh]"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-800 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 shrink-0">
               <MessageSquareText size={18} />
             </div>
-            <div>
-              <h2 className="text-base font-semibold text-white tracking-tight">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold text-white tracking-tight truncate">
                 SMS Expense Capture &amp; Review
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-400 truncate">
                 Processed locally on this device · Learns from your reviews
               </p>
             </div>
@@ -205,18 +217,19 @@ export const SmsIngestionModal: React.FC<SmsIngestionModalProps> = ({ isOpen, on
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
+            aria-label="Close"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="grid grid-cols-3 bg-slate-950 p-1 mx-5 mt-3 rounded-xl border border-slate-800 text-xs font-semibold">
+        <div className="grid grid-cols-3 bg-slate-950 p-1 mx-3 sm:mx-5 mt-3 rounded-xl border border-slate-800 text-[11px] sm:text-xs font-semibold shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab('capture')}
-            className={`py-2 rounded-lg transition-colors cursor-pointer ${
+            className={`py-2 px-1.5 min-h-[40px] rounded-lg transition-colors cursor-pointer truncate ${
               activeTab === 'capture'
                 ? 'bg-slate-800 text-white'
                 : 'text-slate-400 hover:text-slate-200'
@@ -227,29 +240,29 @@ export const SmsIngestionModal: React.FC<SmsIngestionModalProps> = ({ isOpen, on
           <button
             type="button"
             onClick={() => setActiveTab('staging')}
-            className={`py-2 rounded-lg transition-colors cursor-pointer ${
+            className={`py-2 px-1.5 min-h-[40px] rounded-lg transition-colors cursor-pointer truncate ${
               activeTab === 'staging'
                 ? 'bg-slate-800 text-white'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Review Queue ({pendingStaged.length})
+            Review ({pendingStaged.length})
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('rules')}
-            className={`py-2 rounded-lg transition-colors cursor-pointer ${
+            className={`py-2 px-1.5 min-h-[40px] rounded-lg transition-colors cursor-pointer truncate ${
               activeTab === 'rules'
                 ? 'bg-slate-800 text-white'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Learned Rules ({smsRuleOverrides.length})
+            Rules ({smsRuleOverrides.length})
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-5 overflow-y-auto space-y-4 text-xs flex-1">
+        <div className="p-4 sm:p-5 overflow-y-auto overscroll-contain space-y-4 text-xs flex-1">
           {errorBanner && (
             <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-500/30 text-rose-300 flex items-center gap-2">
               <AlertCircle size={15} className="shrink-0" />
@@ -856,14 +869,37 @@ export const SmsIngestionModal: React.FC<SmsIngestionModalProps> = ({ isOpen, on
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => deleteSmsRuleOverride(rule.id)}
-                      className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 cursor-pointer shrink-0"
-                      title="Delete learned rule"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    {confirmDeleteRuleId === rule.id ? (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            deleteSmsRuleOverride(rule.id);
+                            setConfirmDeleteRuleId(null);
+                          }}
+                          className="px-2.5 min-h-[36px] rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-semibold cursor-pointer"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteRuleId(null)}
+                          className="px-2.5 min-h-[36px] rounded-lg bg-slate-800 text-slate-300 text-[11px] cursor-pointer"
+                        >
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteRuleId(rule.id)}
+                        className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 cursor-pointer shrink-0"
+                        title="Delete learned rule"
+                        aria-label="Delete learned rule"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
                 ))
               )}

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Currency, AppTheme } from '../../types';
 import { DEFAULT_SETTINGS, THEME_PRESETS } from '../../lib/defaults';
-import { generateSalt, hashPin, encryptExportData, decryptExportData } from '../../lib/crypto';
+import { generateSecureSalt, hashPinArgon2id, verifyPinAndCheckUpgrade } from '../../lib/securityArgon2';
 import { Modal } from '../common/Modal';
 import {
   User,
@@ -85,12 +85,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection = 'pr
   const [currRate, setCurrRate] = useState('');
   const [currError, setCurrError] = useState('');
   const [currencyDeleteError, setCurrencyDeleteError] = useState('');
+  const [confirmDeleteCurrCode, setConfirmDeleteCurrCode] = useState<string | null>(null);
 
   // Security PIN states
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [pinSuccess, setPinSuccess] = useState('');
+  const [showDisablePinConfirm, setShowDisablePinConfirm] = useState(false);
+  const [disableVerifyPin, setDisableVerifyPin] = useState('');
 
   // Theme Customizer draft states & save status
   const [draftColors, setDraftColors] = useState<AppTheme['colors']>(theme.colors);
@@ -213,26 +216,41 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection = 'pr
       return;
     }
 
-    const salt = generateSalt(16);
-    const hash = await hashPin(newPin, salt);
+    const salt = generateSecureSalt(16);
+    const hash = await hashPinArgon2id(newPin, salt);
     await updateSettings({
       pinLockEnabled: true,
       pinSalt: salt,
       pinHash: hash,
     });
-    setPinSuccess('PIN lock enabled successfully!');
+    setPinSuccess('PIN lock enabled with Argon2id protection.');
     setNewPin('');
     setConfirmPin('');
     setPinError('');
     setTimeout(() => setPinSuccess(''), 3000);
   };
 
-  const handleDisablePin = async () => {
+  const handleConfirmDisablePin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPinError('');
+    if (settings.pinHash && settings.pinSalt) {
+      if (disableVerifyPin.length !== 4) {
+        setPinError('Enter your current 4-digit PIN to disable vault lock.');
+        return;
+      }
+      const check = await verifyPinAndCheckUpgrade(disableVerifyPin, settings.pinSalt, settings.pinHash);
+      if (!check.isValid) {
+        setPinError('Incorrect current PIN.');
+        return;
+      }
+    }
     await updateSettings({
       pinLockEnabled: false,
       pinHash: '',
       pinSalt: '',
     });
+    setShowDisablePinConfirm(false);
+    setDisableVerifyPin('');
     setPinSuccess('PIN lock disabled.');
     setTimeout(() => setPinSuccess(''), 3000);
   };
@@ -423,8 +441,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection = 'pr
           )}
 
           {/* Currencies Table */}
-          <div className="border border-slate-800 rounded-xl overflow-hidden">
-            <table className="w-full text-left text-xs">
+          <div className="border border-slate-800 rounded-xl overflow-x-auto">
+            <table className="w-full min-w-[460px] text-left text-xs">
               <thead className="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
                 <tr>
                   <th className="p-3">Code</th>
@@ -479,21 +497,43 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection = 'pr
                       </td>
                       <td className="p-3 text-right font-sans">
                         {!isBase && (
-                          <button
-                            onClick={async () => {
-                              const deleted = await deleteCurrency(c.code);
-                              if (!deleted) {
-                                setCurrencyDeleteError(
-                                  `Cannot delete currency ${c.code} while holdings or loans reference it.`
-                                );
-                              } else {
-                                setCurrencyDeleteError('');
-                              }
-                            }}
-                            className="p-1 rounded text-slate-500 hover:text-rose-400 cursor-pointer"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          confirmDeleteCurrCode === c.code ? (
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const deleted = await deleteCurrency(c.code);
+                                  setConfirmDeleteCurrCode(null);
+                                  if (!deleted) {
+                                    setCurrencyDeleteError(
+                                      `Cannot delete currency ${c.code} while holdings or loans reference it.`
+                                    );
+                                  } else {
+                                    setCurrencyDeleteError('');
+                                  }
+                                }}
+                                className="min-h-[36px] px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteCurrCode(null)}
+                                className="min-h-[36px] px-2 py-1 rounded-lg bg-slate-800 text-slate-300 text-[11px] cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteCurrCode(c.code)}
+                              className="min-w-[40px] min-h-[40px] inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800/70 cursor-pointer"
+                              aria-label={`Delete ${c.code}`}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )
                         )}
                       </td>
                     </tr>
@@ -869,47 +909,103 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection = 'pr
           )}
 
           {settings.pinLockEnabled ? (
-            <div className="p-4 rounded-xl bg-slate-950/70 border border-emerald-500/30 flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Lock size={16} className="text-emerald-400" />
-                  <span className="text-sm font-bold text-white">PIN Lock is Active</span>
+            <div className="p-4 rounded-xl bg-slate-950/70 border border-emerald-500/30 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Lock size={16} className="text-emerald-400 shrink-0" />
+                    <span className="text-sm font-bold text-white">PIN Lock is Active</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Argon2id salted hash stored locally on-device.
+                  </p>
                 </div>
-                <p className="text-xs text-slate-400 mt-1">
-                  Salted SHA-256 hash stored locally in IndexedDB.
-                </p>
+                {!showDisablePinConfirm && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPinError('');
+                      setShowDisablePinConfirm(true);
+                    }}
+                    className="min-h-[44px] px-3.5 py-2 rounded-xl bg-rose-600/20 text-rose-300 border border-rose-500/30 hover:bg-rose-600/30 text-xs font-semibold cursor-pointer shrink-0"
+                  >
+                    Disable PIN
+                  </button>
+                )}
               </div>
-              <button
-                onClick={handleDisablePin}
-                className="px-3.5 py-1.5 rounded-xl bg-rose-600/20 text-rose-300 border border-rose-500/30 hover:bg-rose-600/30 text-xs font-semibold cursor-pointer"
-              >
-                Disable PIN
-              </button>
+
+              {showDisablePinConfirm && (
+                <form
+                  onSubmit={handleConfirmDisablePin}
+                  className="p-3 rounded-xl bg-slate-900 border border-rose-500/30 space-y-2.5 animate-fade-in"
+                >
+                  <p className="text-[11px] text-rose-200 font-medium">
+                    {settings.pinHash && settings.pinSalt
+                      ? 'Confirm your current 4-digit PIN to disable vault lock:'
+                      : 'Confirm disabling local vault PIN protection:'}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {settings.pinHash && settings.pinSalt && (
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={4}
+                        placeholder="Current PIN"
+                        value={disableVerifyPin}
+                        onChange={(e) => setDisableVerifyPin(e.target.value.replace(/\D/g, ''))}
+                        className="flex-1 min-w-[120px] bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono text-center tracking-widest"
+                      />
+                    )}
+                    <button
+                      type="submit"
+                      className="min-h-[44px] px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer"
+                    >
+                      Confirm Disable
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDisablePinConfirm(false);
+                        setDisableVerifyPin('');
+                        setPinError('');
+                      }}
+                      className="min-h-[44px] px-3 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           ) : (
             <form onSubmit={handleSetPin} className="space-y-3 p-3.5 rounded-xl bg-slate-950/60 border border-slate-800">
               <span className="text-xs font-bold text-slate-200">Set 4-Digit Vault PIN</span>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <input
                   type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   placeholder="New PIN (4 digits)"
                   maxLength={4}
                   value={newPin}
                   onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 font-mono text-center tracking-widest"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 font-mono text-center tracking-widest"
                 />
                 <input
                   type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   placeholder="Confirm PIN"
                   maxLength={4}
                   value={confirmPin}
                   onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 font-mono text-center tracking-widest"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-200 font-mono text-center tracking-widest"
                 />
               </div>
               <button
                 type="submit"
-                className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 cursor-pointer transition-colors"
+                className="min-h-[44px] w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 cursor-pointer transition-colors"
               >
                 Enable 4-Digit PIN Protection
               </button>
@@ -960,7 +1056,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection = 'pr
             <button
               type="button"
               onClick={lockApp}
-              className="w-full py-2.5 px-4 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 hover:bg-slate-850 text-xs text-slate-300 hover:text-white font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all shadow-sm"
+              className="min-h-[44px] w-full py-2.5 px-4 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 hover:bg-slate-800 text-xs text-slate-300 hover:text-white font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all shadow-sm"
             >
               <Lock size={14} className="text-emerald-400" />
               <span>Lock Vault Now (Instant Logout)</span>
@@ -1053,8 +1149,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection = 'pr
             </div>
           </div>
 
-          <div className="border border-slate-800 rounded-xl overflow-hidden">
-            <table className="w-full text-left text-xs">
+          <div className="border border-slate-800 rounded-xl overflow-x-auto">
+            <table className="w-full min-w-[460px] text-left text-xs">
               <thead className="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
                 <tr>
                   <th className="p-3">Setting</th>

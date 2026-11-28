@@ -49,6 +49,7 @@ export const BillsManager: React.FC = () => {
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
   const [overrideBillTarget, setOverrideBillTarget] = useState<Bill | null>(null);
   const [goalForPayment, setGoalForPayment] = useState<Goal | null>(null);
+  const [confirmDeleteBillId, setConfirmDeleteBillId] = useState<string | null>(null);
 
   // Strictly unlocked liquid holdings (blocks FD, Sweep-In FD, RD, Stocks, Bonds, Mutual Funds, P2P)
   const spendableHoldings = useMemo(
@@ -616,19 +617,45 @@ export const BillsManager: React.FC = () => {
                     {!bill.isAutoLiabilityBill && !bill.isGoalContributionBill && !bill.isCompletedGoalBill && (
                       <>
                         <button
+                          type="button"
                           onClick={() => handleOpenAdd(bill)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                          className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
                           title="Edit"
+                          aria-label={`Edit ${bill.name}`}
                         >
                           <Edit2 size={14} />
                         </button>
-                        <button
-                          onClick={() => deleteBill(bill.id)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer"
-                          title="Delete bill"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {confirmDeleteBillId === bill.id ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                await deleteBill(bill.id);
+                                setConfirmDeleteBillId(null);
+                              }}
+                              className="min-h-[36px] px-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold cursor-pointer transition-colors"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteBillId(null)}
+                              className="min-h-[36px] px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium cursor-pointer transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteBillId(bill.id)}
+                            className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer"
+                            title="Delete bill"
+                            aria-label={`Delete ${bill.name}`}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </>
                     )}
                   </div>
@@ -664,7 +691,7 @@ export const BillsManager: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1">Amount</label>
                 <input
@@ -694,7 +721,7 @@ export const BillsManager: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1">Frequency</label>
                 <select

@@ -56,6 +56,7 @@ export const GoalsView: React.FC = () => {
   const [isAddGoalOpen, setIsAddGoalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [goalForPayment, setGoalForPayment] = useState<Goal | null>(null);
+  const [confirmDeleteGoalId, setConfirmDeleteGoalId] = useState<string | null>(null);
   const [forecastWindow, setForecastWindow] = useState<'monthly_avg' | '3m' | '6m' | '12m'>('monthly_avg');
   const [downloadModal, setDownloadModal] = useState<{
     isOpen: boolean;
@@ -924,11 +925,13 @@ export const GoalsView: React.FC = () => {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
                     <button
+                      type="button"
                       onClick={() => handleOpenAdd(g)}
-                      className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                      className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
                       title="Edit Goal"
+                      aria-label={`Edit ${g.name}`}
                     >
                       <Edit2 size={14} />
                     </button>
@@ -936,19 +939,44 @@ export const GoalsView: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleDownloadGoalRecord(g)}
-                        className="p-2 rounded-lg text-slate-400 hover:text-cyan-400 hover:bg-slate-800 transition-colors cursor-pointer"
+                        className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-400 hover:text-cyan-400 hover:bg-slate-800 transition-colors cursor-pointer"
                         title="Export Goal Ledger CSV"
+                        aria-label={`Export ${g.name} CSV`}
                       >
                         <Download size={14} />
                       </button>
                     )}
-                    <button
-                      onClick={() => deleteGoal(g.id)}
-                      className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer"
-                      title="Delete Goal"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    {confirmDeleteGoalId === g.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await deleteGoal(g.id);
+                            setConfirmDeleteGoalId(null);
+                          }}
+                          className="min-h-[36px] px-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold cursor-pointer transition-colors"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteGoalId(null)}
+                          className="min-h-[36px] px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium cursor-pointer transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteGoalId(g.id)}
+                        className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer"
+                        title="Delete Goal"
+                        aria-label={`Delete ${g.name}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -995,7 +1023,7 @@ export const GoalsView: React.FC = () => {
 
                   {/* Ready to Settle / Repay Banner */}
                   {isReadyToRepay && (
-                    <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-2 text-xs">
+                    <div className="pt-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
                       <div className="flex items-center gap-1.5 text-emerald-300 font-semibold text-[11px]">
                         <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
                         <span>Eligible funds allocated ({fundingPct.toFixed(0)}%). Ready to repay or settle in full!</span>
@@ -1014,7 +1042,7 @@ export const GoalsView: React.FC = () => {
 
                 {/* Progress Metrics Grid */}
                 {isDebtGoal ? (
-                  <div className="grid grid-cols-3 gap-2 text-xs font-mono tabular-nums p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono tabular-nums p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
                     <div>
                       <span className="text-[10px] text-slate-400 uppercase font-sans block">Baseline Debt</span>
                       <div className="font-semibold text-slate-300 mt-0.5 text-xs truncate">
@@ -1419,7 +1447,7 @@ export const GoalsView: React.FC = () => {
               <label className="block text-xs font-medium text-slate-300 mb-1.5">
                 Goal Priority
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {[
                   { id: 'high', label: 'High Priority', desc: 'Essential reserve / high-rate debt' },
                   { id: 'mid', label: 'Mid Priority', desc: 'Core capital & milestones' },

@@ -114,10 +114,27 @@ export async function encryptExportData(plainJson: string, passphrase: string): 
 
 // Decrypt payload with passphrase
 export async function decryptExportData(encryptedJson: string, passphrase: string): Promise<string> {
-  const payload = JSON.parse(encryptedJson);
-  const salt = new Uint8Array(payload.salt);
-  const iv = new Uint8Array(payload.iv);
-  const data = new Uint8Array(payload.data);
+  let payload: unknown;
+  try {
+    payload = JSON.parse(encryptedJson);
+  } catch {
+    throw new Error('Encrypted backup file is malformed JSON.');
+  }
+
+  if (
+    !payload ||
+    typeof payload !== 'object' ||
+    !Array.isArray((payload as any).salt) ||
+    !Array.isArray((payload as any).iv) ||
+    !Array.isArray((payload as any).data)
+  ) {
+    throw new Error('Encrypted backup payload is missing required cryptographic fields.');
+  }
+
+  const typed = payload as { salt: number[]; iv: number[]; data: number[] };
+  const salt = new Uint8Array(typed.salt);
+  const iv = new Uint8Array(typed.iv);
+  const data = new Uint8Array(typed.data);
 
   const key = await deriveKeyFromPassphrase(passphrase, salt);
   const decBuffer = await window.crypto.subtle.decrypt(

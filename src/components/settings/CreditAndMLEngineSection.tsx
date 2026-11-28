@@ -54,6 +54,7 @@ export const CreditAndMLEngineSection: React.FC = () => {
   const [scoreNotes, setScoreNotes] = useState('');
   const [scoreError, setScoreError] = useState('');
   const [learningFeedbackMsg, setLearningFeedbackMsg] = useState('');
+  const [confirmDeleteScoreId, setConfirmDeleteScoreId] = useState<string | null>(null);
 
   const baseCurr = settings.baseCurrency || 'INR';
   const currSym = currencies.find((c) => c.code === baseCurr)?.symbol || '₹';
@@ -562,23 +563,47 @@ export const CreditAndMLEngineSection: React.FC = () => {
               {creditScores.map((s) => (
                 <div
                   key={s.id}
-                  className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center justify-between text-xs"
+                  className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
                     <span className="text-base font-bold font-mono text-white">{s.score}</span>
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-bold">
                       {s.bureau}
                     </span>
                     <span className="text-slate-400 text-[11px]">{s.date}</span>
-                    {s.notes && <span className="text-slate-500 text-[11px] italic truncate max-w-xs">{s.notes}</span>}
+                    {s.notes && <span className="text-slate-500 text-[11px] italic truncate max-w-[220px] sm:max-w-xs">{s.notes}</span>}
                   </div>
-                  <button
-                    onClick={() => deleteCreditScore(s.id)}
-                    className="p-1 text-slate-500 hover:text-rose-400 cursor-pointer"
-                    title="Delete log"
-                  >
-                    <Trash2 size={12} />
-                  </button>
+                  {confirmDeleteScoreId === s.id ? (
+                    <div className="flex items-center gap-1 ml-auto">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await deleteCreditScore(s.id);
+                          setConfirmDeleteScoreId(null);
+                        }}
+                        className="min-h-[36px] px-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold cursor-pointer transition-colors"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteScoreId(null)}
+                        className="min-h-[36px] px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium cursor-pointer transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteScoreId(s.id)}
+                      className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-900 cursor-pointer transition-colors"
+                      title="Delete log"
+                      aria-label={`Delete credit score from ${s.date}`}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

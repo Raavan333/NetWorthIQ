@@ -3,6 +3,7 @@ import { Transaction, Holding, Liability } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { validateReversalEligibility } from '../../lib/reversalEngine';
 import { formatMoney } from '../../lib/formatters';
+import { useBackDismiss } from '../../lib/modalBackStack';
 import { X, RotateCcw, AlertTriangle, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 interface Props {
@@ -16,6 +17,8 @@ export const TransactionReversalModal: React.FC<Props> = ({ transaction, onClose
   const [reason, setReason] = useState<string>('User requested deletion');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useBackDismiss(true, onClose);
 
   // Validate eligibility & dependent transactions
   const eligibility = useMemo(() => {
@@ -120,29 +123,39 @@ export const TransactionReversalModal: React.FC<Props> = ({ transaction, onClose
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-      <div className="relative w-full max-w-lg bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+    <div
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-lg max-h-[90dvh] bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-neutral-800 bg-neutral-900/90">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-neutral-800 bg-neutral-900/90 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0">
               <RotateCcw className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="text-base font-semibold text-white">Reverse Transaction & Restore Balances</h3>
-              <p className="text-xs text-neutral-400">Ledger Reversal & Audit Engine</p>
+            <div className="min-w-0">
+              <h3 className="text-base font-semibold text-white truncate">Reverse Transaction &amp; Restore Balances</h3>
+              <p className="text-xs text-neutral-400">Ledger Reversal &amp; Audit Engine</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 transition"
+            aria-label="Close"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 transition cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-5 space-y-4">
+        <div className="p-4 sm:p-5 space-y-4 overflow-y-auto overscroll-contain flex-1">
           {/* Target Transaction Details */}
           <div className="p-3.5 rounded-xl bg-neutral-950 border border-neutral-800 text-xs space-y-1.5">
             <div className="flex justify-between">
@@ -221,17 +234,19 @@ export const TransactionReversalModal: React.FC<Props> = ({ transaction, onClose
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-neutral-800 bg-neutral-900/90 flex justify-end gap-2">
+        <div className="p-4 border-t border-neutral-800 bg-neutral-900/90 flex justify-end gap-2 shrink-0">
           <button
+            type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-medium text-neutral-400 hover:text-white transition"
+            className="px-4 min-h-[44px] rounded-lg bg-neutral-800 hover:bg-neutral-700 text-xs font-medium text-neutral-300 hover:text-white transition cursor-pointer"
           >
             Cancel
           </button>
           <button
+            type="button"
             onClick={handleConfirmReversal}
             disabled={!eligibility.canReverse || isSubmitting}
-            className="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5"
+            className="px-4 min-h-[44px] bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
           >
             {isSubmitting ? 'Reversing...' : 'Confirm Reversal & Restore'}
           </button>

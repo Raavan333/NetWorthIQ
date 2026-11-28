@@ -634,11 +634,11 @@ export const AssetsView: React.FC = () => {
 
                         <div className="flex items-center gap-1.5 sm:gap-2 mt-1 text-xs text-slate-400 flex-wrap break-words max-w-full overflow-hidden">
                           {isMarket ? (
-                            <span className="break-all xs:break-normal">
+                            <span className="break-all sm:break-normal">
                               {h.units} units × {formatMoney(h.currentPrice || 0, h.currency, itemCurrSym)}
                             </span>
                           ) : (
-                            <span className="break-all xs:break-normal">Balance: {formatMoney(h.principalOrValue, h.currency, itemCurrSym)}</span>
+                            <span className="break-all sm:break-normal">Balance: {formatMoney(h.principalOrValue, h.currency, itemCurrSym)}</span>
                           )}
 
                           <span className="text-slate-600 shrink-0">·</span>
@@ -868,7 +868,7 @@ export const AssetsView: React.FC = () => {
                                         setActiveMenuId(null);
                                         setSelectedDepositForPayout(h);
                                       }}
-                                      className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-400 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
+                                      className="px-2.5 py-2 min-h-[38px] rounded-lg text-xs font-semibold text-indigo-400 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
                                     >
                                       <Building2 size={14} className="text-indigo-400 shrink-0" />
                                       <span>Settle / Payout</span>
@@ -882,7 +882,7 @@ export const AssetsView: React.FC = () => {
                                       setSelectedHoldingForEdit(h);
                                       setIsAddEditOpen(true);
                                     }}
-                                    className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
+                                    className="px-2.5 py-2 min-h-[38px] rounded-lg text-xs font-semibold text-slate-200 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
                                   >
                                     <Edit2 size={14} className="shrink-0 text-slate-400" />
                                     <span>Edit</span>
@@ -892,9 +892,9 @@ export const AssetsView: React.FC = () => {
                                     role="menuitem"
                                     onClick={() => {
                                       setActiveMenuId(null);
-                                      deleteHolding(h.id);
+                                      setHoldingToDelete(h);
                                     }}
-                                    className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer text-left w-full transition-colors"
+                                    className="px-2.5 py-2 min-h-[38px] rounded-lg text-xs font-semibold text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer text-left w-full transition-colors"
                                   >
                                     <Trash2 size={14} className="shrink-0 text-rose-400" />
                                     <span>Delete</span>

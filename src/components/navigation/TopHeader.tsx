@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import { THEME_PRESETS } from '../../lib/defaults';
+import { useBackDismiss } from '../../lib/modalBackStack';
 import {
   Target,
   Briefcase,
@@ -13,7 +14,6 @@ import {
   ChevronDown,
   Sparkles,
   Palette,
-  Lock,
   LogOut,
   GraduationCap,
   ShieldCheck,
@@ -27,12 +27,13 @@ export const TopHeader: React.FC = () => {
     attentionItems,
     theme,
     updateTheme,
-    lockApp,
     logoutApp,
     notifications,
     readNotificationIds,
   } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+  useBackDismiss(menuOpen, closeMenu);
 
   const cycleTheme = () => {
     const currentIndex = THEME_PRESETS.findIndex((p) => p.id === theme.id);
@@ -44,7 +45,7 @@ export const TopHeader: React.FC = () => {
   const criticalCount = attentionItems.filter((i) => i.level === 'critical').length;
 
   return (
-    <header className="relative z-30 w-full border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md px-3 sm:px-4 py-2.5 sm:py-3">
+    <header className="relative z-30 w-full border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md safe-area-pt safe-area-px pb-2.5 sm:pb-3">
       <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
         {/* Brand / Logo */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -69,13 +70,13 @@ export const TopHeader: React.FC = () => {
           {/* Global Alert badge if cards due soon / overdue / low cash */}
           {hasCriticalAlert && (
             <button
+              type="button"
               onClick={() => setActiveModal('needsAttention')}
-              className={`p-2 rounded-xl flex items-center gap-1 text-xs font-semibold cursor-pointer border ${
-                settings.reduceMotion ? 'bg-rose-500/20 border-rose-500/50 text-rose-400' : 'bg-rose-500/20 border-rose-500/60 text-rose-400 animate-pulse'
-              }`}
+              className="min-w-[44px] min-h-[44px] px-2.5 py-2 rounded-xl flex items-center justify-center gap-1 text-xs font-semibold cursor-pointer border bg-rose-500/20 border-rose-500/60 text-rose-300"
               title="Attention Needed"
+              aria-label="Attention Needed"
             >
-              <AlertTriangle size={15} />
+              <AlertTriangle size={16} />
               <span className="hidden sm:inline">Alert</span>
               {criticalCount > 0 && (
                 <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] flex items-center justify-center font-bold">
@@ -87,15 +88,17 @@ export const TopHeader: React.FC = () => {
 
           {/* Centralized Notification Bell with Unread & Conflict Badges */}
           <button
+            type="button"
             onClick={() => setActiveModal('notifications')}
-            className={`relative p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors flex items-center justify-center cursor-pointer border ${
+            className={`relative min-w-[44px] min-h-[44px] p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors flex items-center justify-center cursor-pointer border ${
               notifications.some((n) => n.severity === 'critical')
                 ? 'border-rose-500/50 bg-rose-500/10 text-rose-300'
                 : 'border-slate-800 bg-slate-900/60'
             }`}
             title="Notification Center & Obligation Conflicts"
+            aria-label="Notifications"
           >
-            <Bell size={16} />
+            <Bell size={17} />
             {notifications.filter((n) => !readNotificationIds[n.id]).length > 0 && (
               <span
                 className={`absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
@@ -129,7 +132,7 @@ export const TopHeader: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveModal('goals')}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-850 hover:bg-slate-800 transition-colors flex items-center gap-1.5 text-xs font-medium cursor-pointer"
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors flex items-center gap-1.5 text-xs font-medium cursor-pointer"
               title="Goals"
             >
               <Target size={16} />
@@ -188,9 +191,11 @@ export const TopHeader: React.FC = () => {
           {/* Mobile Top Menu Button */}
           <div className="sm:hidden relative">
             <button
+              type="button"
               onClick={() => setMenuOpen(!menuOpen)}
-              className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white flex items-center gap-1 cursor-pointer"
+              className="min-w-[44px] min-h-[44px] px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white flex items-center justify-center gap-1 cursor-pointer"
               aria-label="Navigation menu"
+              aria-expanded={menuOpen}
             >
               <Menu size={18} />
               <ChevronDown size={14} className={`transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
@@ -199,7 +204,7 @@ export const TopHeader: React.FC = () => {
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 top-11 z-30 w-52 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-1.5 flex flex-col gap-1">
+                <div className="absolute right-0 top-12 z-30 w-56 max-w-[calc(100vw-1rem)] max-h-[calc(100dvh-5.5rem)] overflow-y-auto overscroll-contain bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-1.5 flex flex-col gap-1">
                   <button
                     onClick={() => {
                       setMenuOpen(false);

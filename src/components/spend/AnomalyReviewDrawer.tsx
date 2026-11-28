@@ -2,6 +2,7 @@ import React from 'react';
 import { FinancialAnomaly, Transaction } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { formatMoney } from '../../lib/formatters';
+import { useBackDismiss } from '../../lib/modalBackStack';
 import { X, AlertTriangle, CheckCircle, Info, ShieldAlert, ArrowRight } from 'lucide-react';
 
 interface Props {
@@ -12,32 +13,44 @@ interface Props {
 export const AnomalyReviewDrawer: React.FC<Props> = ({ onClose, onSelectTransactionForReversal }) => {
   const { anomalies, dismissAnomaly, transactions, settings } = useApp();
 
+  useBackDismiss(true, onClose);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-      <div className="relative w-full max-w-xl bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+    <div
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-xl bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-neutral-800 bg-neutral-900/90">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-neutral-800 bg-neutral-900/90 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0">
               <ShieldAlert className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="text-base font-semibold text-white">Financial Anomaly Review</h3>
+            <div className="min-w-0">
+              <h3 className="text-base font-semibold text-white truncate">Financial Anomaly Review</h3>
               <p className="text-xs text-neutral-400">
                 {anomalies.length} Flagged {anomalies.length === 1 ? 'Pattern' : 'Patterns'} for Verification
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 transition"
+            aria-label="Close"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 transition cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-5 overflow-y-auto space-y-4">
+        <div className="p-4 sm:p-5 overflow-y-auto overscroll-contain space-y-4 flex-1">
           {anomalies.length === 0 ? (
             <div className="text-center py-12 space-y-2">
               <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto" />
@@ -114,10 +127,11 @@ export const AnomalyReviewDrawer: React.FC<Props> = ({ onClose, onSelectTransact
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-neutral-800 bg-neutral-900/90 flex justify-end">
+        <div className="p-4 border-t border-neutral-800 bg-neutral-900/90 flex justify-end shrink-0">
           <button
+            type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-medium text-neutral-400 hover:text-white transition"
+            className="px-4 min-h-[44px] rounded-lg bg-neutral-800 hover:bg-neutral-700 text-xs font-medium text-neutral-200 transition cursor-pointer"
           >
             Close
           </button>

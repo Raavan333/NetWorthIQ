@@ -455,7 +455,7 @@ export const ConfirmGoalPaymentModal: React.FC<ConfirmGoalPaymentModalProps> = (
               </div>
 
               {/* Quick Percentage Chips */}
-              <div className="grid grid-cols-4 gap-1.5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                 {[30, 25, 50, 10].map((pct) => (
                   <button
                     key={pct}
@@ -464,7 +464,7 @@ export const ConfirmGoalPaymentModal: React.FC<ConfirmGoalPaymentModalProps> = (
                       setSelectedPercentage(pct);
                       setCustomAmount(Math.round(goal.cost * (pct / 100)).toString());
                     }}
-                    className={`py-1.5 px-2 rounded-xl border text-xs font-bold font-mono transition-all cursor-pointer ${
+                    className={`py-2 px-2 min-h-[40px] rounded-xl border text-xs font-bold font-mono tabular-nums transition-all cursor-pointer ${
                       selectedPercentage === pct
                         ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm'
                         : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'

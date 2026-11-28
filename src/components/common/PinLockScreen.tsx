@@ -1,6 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
-import { verifyPinAndCheckUpgrade, hashPinArgon2id, generateSecureSalt } from '../../lib/securityArgon2';
+import {
+  verifyPinAndCheckUpgrade,
+  hashPinArgon2id,
+  generateSecureSalt,
+  checkLockout,
+  registerFailedAttempt,
+  resetLockout,
+  LockoutState,
+} from '../../lib/securityArgon2';
+import { safeJsonParse } from '../../lib/storage';
+import { useBackDismiss } from '../../lib/modalBackStack';
 import {
   Shield,
   Delete,
@@ -9,6 +19,28 @@ import {
   ArrowLeft,
   Lock,
 } from 'lucide-react';
+
+const LOCKOUT_STORAGE_KEY = 'networthiq_pin_lockout';
+
+function loadLockoutState(): LockoutState {
+  if (typeof localStorage === 'undefined') return resetLockout();
+  const parsed = safeJsonParse<LockoutState>(localStorage.getItem(LOCKOUT_STORAGE_KEY), resetLockout());
+  return {
+    failedAttempts: Number(parsed.failedAttempts) || 0,
+    lockoutUntil: typeof parsed.lockoutUntil === 'string' ? parsed.lockoutUntil : null,
+    lastFailedAt: typeof parsed.lastFailedAt === 'string' ? parsed.lastFailedAt : null,
+  };
+}
+
+function saveLockoutState(state: LockoutState) {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(LOCKOUT_STORAGE_KEY, JSON.stringify(state));
+    }
+  } catch {
+    // ignore storage quota errors
+  }
+}
 
 export const PinLockScreen: React.FC = () => {
   const { settings, updateSettings, unlockApp, wipeAllData } = useApp();
@@ -25,7 +57,8 @@ export const PinLockScreen: React.FC = () => {
 
   // Unlock mode states (for returning users)
   const [enteredPin, setEnteredPin] = useState<string>('');
-  const [failedAttempts, setFailedAttempts] = useState<number>(0);
+  const [lockoutState, setLockoutState] = useState<LockoutState>(() => loadLockoutState());
+  const [lockRemainingSeconds, setLockRemainingSeconds] = useState<number>(() => checkLockout(loadLockoutState()).remainingSeconds);
 
   // Shared UX states
   const [status, setStatus] = useState<'idle' | 'verifying' | 'success'>('idle');
@@ -36,6 +69,33 @@ export const PinLockScreen: React.FC = () => {
   const [showResetDialog, setShowResetDialog] = useState<boolean>(false);
   const [resetConfirmWord, setResetConfirmWord] = useState<string>('');
   const [isResetting, setIsResetting] = useState<boolean>(false);
+
+  const closeResetDialog = useCallback(() => {
+    setShowResetDialog(false);
+    setResetConfirmWord('');
+  }, []);
+
+  useBackDismiss(showResetDialog, closeResetDialog);
+
+  // Enforce brute-force lockout countdown across reloads
+  useEffect(() => {
+    const syncLockout = () => {
+      const check = checkLockout(lockoutState);
+      setLockRemainingSeconds(check.remainingSeconds);
+      if (!check.isLocked && lockoutState.lockoutUntil) {
+        const cleared = resetLockout();
+        setLockoutState(cleared);
+        saveLockoutState(cleared);
+        setError('');
+      }
+    };
+    syncLockout();
+    if (!lockoutState.lockoutUntil) return;
+    const timer = setInterval(syncLockout, 1000);
+    return () => clearInterval(timer);
+  }, [lockoutState]);
+
+  const isRateLimited = isPinConfigured && lockRemainingSeconds > 0;
 
   // Current active digits depending on flow
   const currentDigits = !isPinConfigured
@@ -110,6 +170,13 @@ export const PinLockScreen: React.FC = () => {
   // 2. UNLOCK VAULT: Handle Digit Input
   const handleUnlockDigit = async (digit: string) => {
     if (status !== 'idle' || enteredPin.length >= 4) return;
+    const currentLock = checkLockout(lockoutState);
+    if (currentLock.isLocked) {
+      setLockRemainingSeconds(currentLock.remainingSeconds);
+      triggerError(`Too many attempts. Try again in ${currentLock.remainingSeconds}s.`);
+      return;
+    }
+
     setError('');
     const nextPin = enteredPin + digit;
     setEnteredPin(nextPin);
@@ -124,19 +191,25 @@ export const PinLockScreen: React.FC = () => {
             updateSettings({ pinHash: verifyResult.newHash });
           }
           setStatus('success');
-          setFailedAttempts(0);
+          const cleared = resetLockout();
+          setLockoutState(cleared);
+          saveLockoutState(cleared);
+          setLockRemainingSeconds(0);
           setError('');
           setTimeout(() => {
             unlockApp();
           }, 260);
         } else {
-          const nextFailed = failedAttempts + 1;
-          setFailedAttempts(nextFailed);
+          const nextLockState = registerFailedAttempt(lockoutState);
+          setLockoutState(nextLockState);
+          saveLockoutState(nextLockState);
+          const nextCheck = checkLockout(nextLockState);
           setStatus('idle');
-          if (nextFailed >= 5) {
-            triggerError('Too many failed attempts. Temporary security lockout active.');
-          } else if (nextFailed >= 3) {
-            triggerError('Incorrect PIN. You can reset below if forgotten.');
+          if (nextCheck.isLocked) {
+            setLockRemainingSeconds(nextCheck.remainingSeconds);
+            triggerError(`Too many failed attempts. Locked for ${Math.ceil(nextCheck.remainingSeconds / 60)}m.`);
+          } else if (nextLockState.failedAttempts >= 3) {
+            triggerError(`Incorrect PIN (${5 - nextLockState.failedAttempts} tries left).`);
           } else {
             triggerError('Incorrect PIN');
           }
@@ -155,6 +228,7 @@ export const PinLockScreen: React.FC = () => {
   };
 
   const handleDigit = (digit: string) => {
+    if (isRateLimited) return;
     if (!isPinConfigured) {
       handleSetupDigit(digit);
     } else {
@@ -225,9 +299,12 @@ export const PinLockScreen: React.FC = () => {
         pinHash: '',
         pinSalt: '',
       });
+      const cleared = resetLockout();
+      setLockoutState(cleared);
+      saveLockoutState(cleared);
+      setLockRemainingSeconds(0);
       setShowResetDialog(false);
       setResetConfirmWord('');
-      setFailedAttempts(0);
       setEnteredPin('');
       setInitialPin('');
       setConfirmPin('');
@@ -245,7 +322,7 @@ export const PinLockScreen: React.FC = () => {
   const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#070b14] text-slate-100 select-none overflow-y-auto px-4 py-3 sm:py-8 min-h-[100dvh]">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#070b14] text-slate-100 select-none overflow-y-auto px-4 safe-area-pt safe-area-pb min-h-[100dvh]">
       {/* Ambient lighting backdrop */}
       <div
         className="fixed inset-0 pointer-events-none opacity-30 z-0"
@@ -293,12 +370,8 @@ export const PinLockScreen: React.FC = () => {
             {settings.appName || 'NetWorthIQ'}
           </h1>
           <p className="text-[11px] text-slate-400 tracking-wider uppercase font-medium mt-0.5">
-            Encrypted Offline Vault
+            Argon2id Encrypted Offline Vault
           </p>
-          <div className="flex items-center gap-1.5 mt-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono text-emerald-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Compounding Active 24/7 · Background Live</span>
-          </div>
         </header>
 
         {/* Passcode Instruction */}
@@ -349,7 +422,15 @@ export const PinLockScreen: React.FC = () => {
 
         {/* Dynamic status feedback text without layout shift */}
         <div className="min-h-[20px] flex items-center justify-center text-center px-2">
-          {error ? (
+          {isRateLimited ? (
+            <p className="text-xs font-semibold text-rose-400 animate-fade-in flex items-center gap-1.5">
+              <Lock size={14} className="shrink-0" />
+              <span>
+                Security lockout active ({Math.floor(lockRemainingSeconds / 60)}:
+                {String(lockRemainingSeconds % 60).padStart(2, '0')})
+              </span>
+            </p>
+          ) : error ? (
             <p className="text-xs font-semibold text-rose-400 animate-fade-in flex items-center gap-1.5">
               <AlertTriangle size={14} className="shrink-0" />
               <span>{error}</span>
@@ -373,7 +454,7 @@ export const PinLockScreen: React.FC = () => {
               key={num}
               type="button"
               onClick={() => handleDigit(num)}
-              disabled={status !== 'idle'}
+              disabled={status !== 'idle' || isRateLimited}
               className="min-h-[48px] h-[clamp(50px,7.8dvh,64px)] rounded-2xl bg-slate-900/90 hover:bg-slate-800/90 active:bg-emerald-500/25 active:border-emerald-400 active:scale-95 border border-slate-800/90 hover:border-slate-700 flex items-center justify-center transition-all duration-100 cursor-pointer shadow-md shadow-black/40 disabled:opacity-40 select-none group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               aria-label={`Digit ${num}`}
             >
@@ -415,7 +496,7 @@ export const PinLockScreen: React.FC = () => {
           <button
             type="button"
             onClick={() => handleDigit('0')}
-            disabled={status !== 'idle'}
+            disabled={status !== 'idle' || isRateLimited}
             className="min-h-[48px] h-[clamp(50px,7.8dvh,64px)] rounded-2xl bg-slate-900/90 hover:bg-slate-800/90 active:bg-emerald-500/25 active:border-emerald-400 active:scale-95 border border-slate-800/90 hover:border-slate-700 flex items-center justify-center transition-all duration-100 cursor-pointer shadow-md shadow-black/40 disabled:opacity-40 select-none group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
             aria-label="Digit 0"
           >
@@ -454,8 +535,16 @@ export const PinLockScreen: React.FC = () => {
 
       {/* Reset Vault Confirmation Modal */}
       {showResetDialog && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-800 p-5 shadow-2xl">
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in"
+          onClick={closeResetDialog}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-sm max-h-[90dvh] overflow-y-auto overscroll-contain rounded-2xl bg-slate-900 border border-slate-800 p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center gap-2 text-rose-400 mb-2">
               <AlertTriangle size={18} />
               <h2 className="text-sm font-bold text-white">Reset Vault</h2>
@@ -468,17 +557,14 @@ export const PinLockScreen: React.FC = () => {
               placeholder="Type RESET"
               value={resetConfirmWord}
               onChange={(e) => setResetConfirmWord(e.target.value.toUpperCase())}
-              className="w-full bg-slate-950 border border-slate-700 focus:border-rose-500 focus:outline-none rounded-xl px-3 py-2 text-sm text-white font-mono uppercase mb-4"
+              className="w-full bg-slate-950 border border-slate-700 focus:border-rose-500 focus:outline-none rounded-xl px-3 py-2.5 text-sm text-white font-mono uppercase mb-4"
               autoFocus
             />
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
-                onClick={() => {
-                  setShowResetDialog(false);
-                  setResetConfirmWord('');
-                }}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 text-xs font-semibold text-slate-300 hover:bg-slate-700 cursor-pointer"
+                onClick={closeResetDialog}
+                className="min-h-[44px] px-4 py-2 rounded-xl bg-slate-800 text-xs font-semibold text-slate-300 hover:bg-slate-700 cursor-pointer"
               >
                 Cancel
               </button>
@@ -486,13 +572,13 @@ export const PinLockScreen: React.FC = () => {
                 type="button"
                 onClick={handlePerformReset}
                 disabled={resetConfirmWord.trim().toUpperCase() !== 'RESET' || isResetting}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
+                className={`min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
                   resetConfirmWord.trim().toUpperCase() === 'RESET'
                     ? 'bg-rose-600 hover:bg-rose-500 text-white'
                     : 'bg-slate-800 text-slate-500 cursor-not-allowed'
                 }`}
               >
-                {isResetting ? 'Resetting...' : 'Reset'}
+                {isResetting ? 'Resetting...' : 'Reset Vault'}
               </button>
             </div>
           </div>

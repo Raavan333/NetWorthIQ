@@ -560,7 +560,7 @@ export const EditCareerProfileModal: React.FC<EditCareerProfileModalProps> = ({
           <label className="block text-slate-300 font-semibold mb-1">
             Target Trajectory Focus
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => setTargetCompanyType('all')}

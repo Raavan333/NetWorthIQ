@@ -21,6 +21,7 @@ export const IncomeSalaryView: React.FC = () => {
 
   const [isAddIncomeOpen, setIsAddIncomeOpen] = useState(false);
   const [editingIncome, setEditingIncome] = useState<IncomeStream | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Form states
   const [name, setName] = useState('');
@@ -222,22 +223,46 @@ export const IncomeSalaryView: React.FC = () => {
                     <span>Post Salary Credit</span>
                   </button>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 flex-wrap">
                     <button
+                      type="button"
                       onClick={() => handleOpenAdd(inc)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                      className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                      aria-label={`Edit ${inc.name}`}
                     >
                       <Edit2 size={14} />
                     </button>
-                    <button
-                      onClick={() => {
-                        deleteIncomeStream(inc.id);
-                      }}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer"
-                      title="Delete salary stream"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    {confirmDeleteId === inc.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await deleteIncomeStream(inc.id);
+                            setConfirmDeleteId(null);
+                          }}
+                          className="min-h-[36px] px-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold cursor-pointer transition-colors"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="min-h-[36px] px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium cursor-pointer transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(inc.id)}
+                        className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors cursor-pointer"
+                        title="Delete salary stream"
+                        aria-label={`Delete ${inc.name}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -269,7 +294,7 @@ export const IncomeSalaryView: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1">Amount per Period</label>
                 <input
@@ -299,7 +324,7 @@ export const IncomeSalaryView: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1">Frequency</label>
                 <select
@@ -410,7 +435,7 @@ export const IncomeSalaryView: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1">
                   Amount ({settings.baseCurrency})

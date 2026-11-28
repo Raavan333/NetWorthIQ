@@ -3,6 +3,7 @@ import { Currency } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { runWhatIfSimulation } from '../../lib/whatIfSimulator';
 import { formatMoney } from '../../lib/formatters';
+import { useBackDismiss } from '../../lib/modalBackStack';
 import {
   X,
   Sparkles,
@@ -51,6 +52,11 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
 
   // Floating dock mode: lets the user minimize the simulator to browse any page freely without losing simulation state
   const [isDocked, setIsDocked] = useState(false);
+
+  useBackDismiss(true, () => {
+    if (isDocked) setIsDocked(false);
+    else onClose();
+  });
 
   const currMap = useMemo(() => {
     const map: Record<string, Currency> = {};
@@ -235,16 +241,16 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
   // FLOATING DOCKED WIDGET: Gives user complete freedom to navigate and inspect real pages without losing state
   if (isDocked) {
     return (
-      <div className="fixed bottom-20 sm:bottom-6 right-3 sm:right-6 z-50 bg-slate-900/95 backdrop-blur-md border border-blue-500/40 shadow-2xl rounded-2xl p-3 sm:p-3.5 flex items-center gap-3 animate-fade-in max-w-sm">
+      <div className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 z-50 bg-slate-900/95 backdrop-blur-md border border-blue-500/40 shadow-2xl rounded-2xl p-3 sm:p-3.5 flex items-center gap-3 animate-fade-in sm:max-w-sm">
         <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">
           <Sparkles size={16} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
-            <span>What-If Simulation Active</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="truncate">What-If Simulation Active</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
           </div>
-          <p className="text-[11px] text-slate-300 font-mono truncate">
+          <p className="text-[11px] text-slate-300 font-mono tabular-nums truncate">
             {scenario.results.debtMonthsSaved > 0
               ? `${scenario.results.debtMonthsSaved} mo saved`
               : 'Active levers'}{' '}
@@ -255,7 +261,7 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
           <button
             type="button"
             onClick={() => setIsDocked(false)}
-            className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1 cursor-pointer shadow-sm transition-colors"
+            className="px-3 min-h-[44px] rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1 cursor-pointer shadow-sm transition-colors"
             title="Expand Full Simulator View"
           >
             <Maximize2 size={13} />
@@ -264,10 +270,11 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
             title="Close Simulator"
+            aria-label="Close Simulator"
           >
-            <X size={15} />
+            <X size={16} />
           </button>
         </div>
       </div>
@@ -275,17 +282,25 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-3 md:p-6 bg-black/75 backdrop-blur-sm animate-fade-in overflow-y-auto">
-      <div className="w-full h-full sm:h-auto sm:max-h-[92vh] max-w-5xl bg-slate-900 border-0 sm:border sm:border-slate-800/80 sm:rounded-2xl shadow-2xl flex flex-col overflow-y-auto overscroll-contain text-slate-100 relative">
+    <div
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-3 md:p-6 bg-black/75 backdrop-blur-sm animate-fade-in overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full h-full sm:h-auto sm:max-h-[92dvh] max-w-5xl bg-slate-900 border-0 sm:border sm:border-slate-800/80 sm:rounded-2xl shadow-2xl flex flex-col overflow-y-auto overscroll-contain text-slate-100 relative safe-area-pt safe-area-pb sm:pt-0 sm:pb-0"
+      >
         {/* Header - Relative, flexible and scrollable (always at top when scrolled up, but scrolls out of view so it never blocks the visible overview) */}
-        <div className="relative w-full flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-slate-800/80 bg-slate-900 shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="relative w-full flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-3.5 border-b border-slate-800/80 bg-slate-900 shrink-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="p-2 sm:p-2.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">
               <Sparkles className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-semibold text-white tracking-tight">
+                <h2 className="text-base sm:text-lg font-semibold text-white tracking-tight truncate">
                   Scenario Simulator
                 </h2>
                 <span className="hidden sm:inline-block text-[10px] text-slate-500 font-mono">
@@ -298,26 +313,29 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 ml-3">
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
             <button
               type="button"
               onClick={() => setIsDocked(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-xs font-medium text-slate-300 transition-colors cursor-pointer border border-slate-700/60 shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3 min-h-[44px] rounded-lg bg-slate-800/90 hover:bg-slate-700 text-xs font-medium text-slate-300 transition-colors cursor-pointer border border-slate-700/60 shadow-xs"
               title="Dock simulator to a floating tray so you can browse and inspect all pages"
             >
-              <Minimize2 size={13} className="text-cyan-400" />
+              <Minimize2 size={14} className="text-cyan-400" />
               <span className="hidden sm:inline">Browse Pages</span>
             </button>
             <button
+              type="button"
               onClick={() => applyPreset('reset')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-xs font-medium text-slate-300 transition-colors cursor-pointer border border-slate-700/60 shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3 min-h-[44px] rounded-lg bg-slate-800/90 hover:bg-slate-700 text-xs font-medium text-slate-300 transition-colors cursor-pointer border border-slate-700/60 shadow-xs"
+              aria-label="Reset simulation"
             >
-              <RotateCcw size={13} />
+              <RotateCcw size={14} />
               <span className="hidden sm:inline">Reset</span>
             </button>
             <button
+              type="button"
               onClick={onClose}
-              className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors cursor-pointer shadow-sm flex items-center gap-1"
+              className="px-4 min-h-[44px] rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors cursor-pointer shadow-sm flex items-center gap-1"
               aria-label="Done"
             >
               <span>Done</span>
@@ -359,11 +377,11 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
               <span>Preset Strategies</span>
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+            <div className="flex flex-wrap items-center gap-2 py-0.5">
               <button
                 type="button"
                 onClick={() => applyPreset('debt')}
-                className="px-3 py-1.5 rounded-lg bg-blue-950/40 border border-blue-700/40 text-blue-200 text-xs font-medium flex items-center gap-1.5 shrink-0 hover:bg-blue-900/40 cursor-pointer transition-all"
+                className="px-3 py-2 min-h-[38px] rounded-lg bg-blue-950/40 border border-blue-700/40 text-blue-200 text-xs font-medium flex items-center gap-1.5 shrink-0 hover:bg-blue-900/40 cursor-pointer transition-all"
               >
                 <Flame size={13} className="text-orange-400" />
                 <span>Debt Freedom Sprint</span>
@@ -371,7 +389,7 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
               <button
                 type="button"
                 onClick={() => applyPreset('balanced')}
-                className="px-3 py-1.5 rounded-lg bg-slate-800/70 border border-slate-700/60 text-slate-200 text-xs font-medium flex items-center gap-1.5 shrink-0 hover:bg-slate-700/70 cursor-pointer transition-all"
+                className="px-3 py-2 min-h-[38px] rounded-lg bg-slate-800/70 border border-slate-700/60 text-slate-200 text-xs font-medium flex items-center gap-1.5 shrink-0 hover:bg-slate-700/70 cursor-pointer transition-all"
               >
                 <TrendingUp size={13} className="text-emerald-400" />
                 <span>Balanced Growth</span>
@@ -379,7 +397,7 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
               <button
                 type="button"
                 onClick={() => applyPreset('savings')}
-                className="px-3 py-1.5 rounded-lg bg-slate-800/70 border border-slate-700/60 text-slate-200 text-xs font-medium flex items-center gap-1.5 shrink-0 hover:bg-slate-700/70 cursor-pointer transition-all"
+                className="px-3 py-2 min-h-[38px] rounded-lg bg-slate-800/70 border border-slate-700/60 text-slate-200 text-xs font-medium flex items-center gap-1.5 shrink-0 hover:bg-slate-700/70 cursor-pointer transition-all"
               >
                 <ShieldCheck size={13} className="text-cyan-400" />
                 <span>Savings Maximizer</span>
@@ -387,7 +405,7 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
               <button
                 type="button"
                 onClick={() => applyPreset('reset')}
-                className="sm:hidden px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 text-xs font-medium flex items-center gap-1 shrink-0 cursor-pointer"
+                className="sm:hidden px-3 py-2 min-h-[38px] rounded-lg bg-slate-900 border border-slate-800 text-slate-400 text-xs font-medium flex items-center gap-1 shrink-0 cursor-pointer"
               >
                 <RotateCcw size={12} />
                 <span>Reset</span>
@@ -546,7 +564,7 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
 
                 {/* Lever 1: Extra Monthly Debt Payment */}
                 <div className="p-3.5 rounded-lg bg-slate-900/60 border border-slate-800/80 space-y-2.5">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <label className="text-xs font-medium text-slate-200">
                       Extra Monthly Debt Payment
                     </label>
@@ -561,7 +579,7 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
                         value={extraLoanInput}
                         onChange={(e) => handleExtraLoanChange(e.target.value)}
                         placeholder="0.00"
-                        className="w-32 sm:w-36 pl-7 pr-2.5 py-1 text-right text-xs font-mono font-semibold bg-slate-950 border border-slate-700/80 rounded-lg text-blue-300 focus:outline-none focus:border-blue-500 transition-colors"
+                        className="w-32 sm:w-36 pl-7 pr-2.5 py-1.5 text-right text-xs font-mono tabular-nums font-semibold bg-slate-950 border border-slate-700/80 rounded-lg text-blue-300 focus:outline-none focus:border-blue-500 transition-colors"
                       />
                     </div>
                   </div>
@@ -573,16 +591,16 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
                     step="any"
                     value={extraLoanPayment}
                     onChange={(e) => updateExtraLoan(Number(e.target.value))}
-                    className="w-full accent-blue-500 cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+                    className="w-full accent-blue-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
                   />
 
-                  <div className="flex items-center justify-between gap-1.5 pt-0.5">
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                     {[0, 1000, 5000, 10000, 20000].map((amt) => (
                       <button
                         key={amt}
                         type="button"
                         onClick={() => updateExtraLoan(amt)}
-                        className={`px-2 py-1 text-[10px] rounded-md font-mono transition-colors cursor-pointer border ${
+                        className={`flex-1 min-w-[48px] px-2 py-1.5 min-h-[36px] text-[11px] rounded-md font-mono tabular-nums transition-colors cursor-pointer border ${
                           extraLoanPayment === amt
                             ? 'bg-blue-600/30 border-blue-500/60 text-blue-200 font-semibold'
                             : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
@@ -614,7 +632,7 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
 
                 {/* Lever 2: Additional Monthly Savings */}
                 <div className="p-3.5 rounded-lg bg-slate-900/60 border border-slate-800/80 space-y-2.5">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <label className="text-xs font-medium text-slate-200">
                       Additional Monthly Savings
                     </label>
@@ -629,7 +647,7 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
                         value={additionalSavingsInput}
                         onChange={(e) => handleSavingsChange(e.target.value)}
                         placeholder="0.00"
-                        className="w-32 sm:w-36 pl-7 pr-2.5 py-1 text-right text-xs font-mono font-semibold bg-slate-950 border border-slate-700/80 rounded-lg text-emerald-300 focus:outline-none focus:border-emerald-500 transition-colors"
+                        className="w-32 sm:w-36 pl-7 pr-2.5 py-1.5 text-right text-xs font-mono tabular-nums font-semibold bg-slate-950 border border-slate-700/80 rounded-lg text-emerald-300 focus:outline-none focus:border-emerald-500 transition-colors"
                       />
                     </div>
                   </div>
@@ -641,16 +659,16 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
                     step="any"
                     value={additionalSavings}
                     onChange={(e) => updateSavings(Number(e.target.value))}
-                    className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+                    className="w-full accent-emerald-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
                   />
 
-                  <div className="flex items-center justify-between gap-1.5 pt-0.5">
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                     {[0, 2000, 5000, 15000, 30000].map((amt) => (
                       <button
                         key={amt}
                         type="button"
                         onClick={() => updateSavings(amt)}
-                        className={`px-2 py-1 text-[10px] rounded-md font-mono transition-colors cursor-pointer border ${
+                        className={`flex-1 min-w-[48px] px-2 py-1.5 min-h-[36px] text-[11px] rounded-md font-mono tabular-nums transition-colors cursor-pointer border ${
                           additionalSavings === amt
                             ? 'bg-emerald-600/30 border-emerald-500/60 text-emerald-200 font-semibold'
                             : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
@@ -664,7 +682,7 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
 
                 {/* Lever 3: Lump-Sum Credit Card Payoff */}
                 <div className="p-3.5 rounded-lg bg-slate-900/60 border border-slate-800/80 space-y-2.5">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <label className="text-xs font-medium text-slate-200">
                       Lump-Sum Card Payoff
                     </label>
@@ -679,7 +697,7 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
                         value={cardLumpSumInput}
                         onChange={(e) => handleCardLumpSumChange(e.target.value)}
                         placeholder="0.00"
-                        className="w-32 sm:w-36 pl-7 pr-2.5 py-1 text-right text-xs font-mono font-semibold bg-slate-950 border border-slate-700/80 rounded-lg text-cyan-300 focus:outline-none focus:border-cyan-500 transition-colors"
+                        className="w-32 sm:w-36 pl-7 pr-2.5 py-1.5 text-right text-xs font-mono tabular-nums font-semibold bg-slate-950 border border-slate-700/80 rounded-lg text-cyan-300 focus:outline-none focus:border-cyan-500 transition-colors"
                       />
                     </div>
                   </div>
@@ -691,16 +709,16 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
                     step="any"
                     value={cardLumpSum}
                     onChange={(e) => updateCardLumpSum(Number(e.target.value))}
-                    className="w-full accent-cyan-500 cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+                    className="w-full accent-cyan-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
                   />
 
-                  <div className="flex items-center justify-between gap-1.5 pt-0.5">
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                     {[0, 5000, 10000, 25000, 50000].map((amt) => (
                       <button
                         key={amt}
                         type="button"
                         onClick={() => updateCardLumpSum(amt)}
-                        className={`px-2 py-1 text-[10px] rounded-md font-mono transition-colors cursor-pointer border ${
+                        className={`flex-1 min-w-[48px] px-2 py-1.5 min-h-[36px] text-[11px] rounded-md font-mono tabular-nums transition-colors cursor-pointer border ${
                           cardLumpSum === amt
                             ? 'bg-cyan-600/30 border-cyan-500/60 text-cyan-200 font-semibold'
                             : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
@@ -872,22 +890,22 @@ export const WhatIfSimulatorModal: React.FC<Props> = ({ onClose }) => {
           </div>
 
           {/* Natural scrollable end actions — scrollable with the page */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 pb-8 border-t border-slate-800/60">
-            <div className="text-[11px] text-slate-500">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 pb-6 border-t border-slate-800/60">
+            <div className="text-[11px] text-slate-500 text-center sm:text-left">
               Read-only simulation sandbox. Simulated levers do not alter your saved accounts, debts, or ledger entries.
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
               <button
                 type="button"
                 onClick={() => setIsDocked(true)}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium cursor-pointer border border-slate-700 transition-colors"
+                className="flex-1 sm:flex-initial px-4 min-h-[44px] rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium cursor-pointer border border-slate-700 transition-colors"
               >
                 Browse Pages
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs text-white font-semibold cursor-pointer shadow-sm transition-colors"
+                className="flex-1 sm:flex-initial px-5 min-h-[44px] rounded-lg bg-blue-600 hover:bg-blue-500 text-xs text-white font-semibold cursor-pointer shadow-sm transition-colors"
               >
                 Done
               </button>

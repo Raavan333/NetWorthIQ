@@ -12,6 +12,7 @@ export const AssetCategoriesManager: React.FC = () => {
   const [returnMode, setReturnMode] = useState<ReturnMode>('realised-only');
   const [defaultLiquidity, setDefaultLiquidity] = useState<LiquidityClass>('Immediate');
   const [isAdding, setIsAdding] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const handleSave = async (e: React.FormEvent) => {
@@ -71,7 +72,7 @@ export const AssetCategoriesManager: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
         <div>
           <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
             <Layers size={15} className="text-cyan-400" />
@@ -188,8 +189,8 @@ export const AssetCategoriesManager: React.FC = () => {
       )}
 
       {/* Asset Types Table */}
-      <div className="border border-slate-800 rounded-xl overflow-hidden">
-        <table className="w-full text-left text-xs">
+      <div className="border border-slate-800 rounded-xl overflow-x-auto">
+        <table className="w-full min-w-[540px] text-left text-xs">
           <thead className="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
             <tr>
               <th className="p-3">Type Name</th>
@@ -237,20 +238,46 @@ export const AssetCategoriesManager: React.FC = () => {
                   <td className="p-3 text-right font-sans">
                     <div className="flex items-center justify-end gap-1">
                       <button
+                        type="button"
                         onClick={() => handleStartEdit(t)}
-                        className="p-1 rounded text-slate-400 hover:text-white cursor-pointer"
+                        className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer transition-colors"
                         title="Edit Type"
+                        aria-label={`Edit ${t.name}`}
                       >
-                        <Edit2 size={13} />
+                        <Edit2 size={14} />
                       </button>
                       {!t.isBuiltIn && holdingCount === 0 && (
-                        <button
-                          onClick={() => handleDelete(t.id)}
-                          className="p-1 rounded text-slate-500 hover:text-rose-400 cursor-pointer"
-                          title="Delete Type"
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                        confirmDeleteId === t.id ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                await handleDelete(t.id);
+                                setConfirmDeleteId(null);
+                              }}
+                              className="min-h-[36px] px-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold cursor-pointer transition-colors"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="min-h-[36px] px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium cursor-pointer transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(t.id)}
+                            className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 cursor-pointer transition-colors"
+                            title="Delete Type"
+                            aria-label={`Delete ${t.name}`}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )
                       )}
                     </div>
                   </td>

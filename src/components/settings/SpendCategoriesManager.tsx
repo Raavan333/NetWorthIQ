@@ -25,6 +25,7 @@ export const SpendCategoriesManager: React.FC = () => {
   const [catName, setCatName] = useState('');
   const [catColor, setCatColor] = useState('#10b981');
   const [isAddingCat, setIsAddingCat] = useState(false);
+  const [confirmDeleteCatId, setConfirmDeleteCatId] = useState<string | null>(null);
 
   // Chip Edit State
   const [editingChipId, setEditingChipId] = useState<string | null>(null);
@@ -33,6 +34,7 @@ export const SpendCategoriesManager: React.FC = () => {
   const [chipCategory, setChipCategory] = useState(spendCategories[0]?.name || 'Food & Dining');
   const [chipAmount, setChipAmount] = useState('');
   const [isAddingChip, setIsAddingChip] = useState(false);
+  const [confirmDeleteChipId, setConfirmDeleteChipId] = useState<string | null>(null);
 
   // Handlers for Categories
   const handleSaveCategory = async () => {
@@ -148,7 +150,7 @@ export const SpendCategoriesManager: React.FC = () => {
     <div className="space-y-6">
       {/* 1. Spend Categories Configuration */}
       <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div>
             <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
               <Tag size={15} className="text-emerald-400" />
@@ -244,21 +246,43 @@ export const SpendCategoriesManager: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleStartEditCat(cat)}
-                  className="p-1 rounded text-slate-400 hover:text-emerald-400 cursor-pointer"
+                  className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-slate-900 cursor-pointer transition-colors"
                   title="Edit Category"
+                  aria-label={`Edit ${cat.name}`}
                 >
-                  <Edit2 size={12} />
+                  <Edit2 size={13} />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    deleteSpendCategory(cat.id);
-                  }}
-                  className="p-1 rounded text-slate-500 hover:text-rose-400 cursor-pointer"
-                  title="Delete Category"
-                >
-                  <Trash2 size={12} />
-                </button>
+                {confirmDeleteCatId === cat.id ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await deleteSpendCategory(cat.id);
+                        setConfirmDeleteCatId(null);
+                      }}
+                      className="min-h-[36px] px-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold cursor-pointer transition-colors"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteCatId(null)}
+                      className="min-h-[36px] px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-medium cursor-pointer transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteCatId(cat.id)}
+                    className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-900 cursor-pointer transition-colors"
+                    title="Delete Category"
+                    aria-label={`Delete ${cat.name}`}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -267,7 +291,7 @@ export const SpendCategoriesManager: React.FC = () => {
 
       {/* 2. One-Tap Quick Spend Chips */}
       <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div>
             <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
               <Zap size={15} className="text-amber-400" />
@@ -277,7 +301,7 @@ export const SpendCategoriesManager: React.FC = () => {
               Customize speed-entry chips to match your exact daily spending pattern (coffee, grocery run, fuel, transit).
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleAutoSyncSpendingPatterns}
@@ -404,19 +428,43 @@ export const SpendCategoriesManager: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleStartEditChip(chip)}
-                  className="p-0.5 text-slate-500 hover:text-emerald-400 cursor-pointer"
+                  className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-500 hover:text-emerald-400 hover:bg-slate-900 cursor-pointer transition-colors"
                   title="Edit chip"
+                  aria-label={`Edit ${chip.label}`}
                 >
-                  <Edit2 size={11} />
+                  <Edit2 size={12} />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => deleteQuickChip(chip.id)}
-                  className="p-0.5 text-slate-500 hover:text-rose-400 cursor-pointer"
-                  title="Delete chip"
-                >
-                  <Trash2 size={11} />
-                </button>
+                {confirmDeleteChipId === chip.id ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await deleteQuickChip(chip.id);
+                        setConfirmDeleteChipId(null);
+                      }}
+                      className="min-h-[36px] px-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold cursor-pointer transition-colors"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteChipId(null)}
+                      className="min-h-[36px] px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-medium cursor-pointer transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteChipId(chip.id)}
+                    className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-900 cursor-pointer transition-colors"
+                    title="Delete chip"
+                    aria-label={`Delete ${chip.label}`}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
               </div>
             </div>
           ))}

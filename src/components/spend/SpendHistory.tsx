@@ -29,6 +29,7 @@ import { downloadFile, copyTextToClipboard } from '../../lib/downloadHelper';
 import { ExportDownloadModal } from '../common/ExportDownloadModal';
 import { TransactionReversalModal } from './TransactionReversalModal';
 import { formatLastDigitsDisplay } from '../../lib/smsEngine';
+import { useBackDismiss } from '../../lib/modalBackStack';
 
 type DatePreset =
   | 'all'
@@ -145,6 +146,10 @@ export const SpendHistory: React.FC = () => {
     content: string;
     mimeType: string;
   } | null>(null);
+
+  useBackDismiss(Boolean(rejectingItem), () => setRejectingItem(null));
+  useBackDismiss(isQuickPasteOpen, () => setIsQuickPasteOpen(false));
+  useBackDismiss(Boolean(flagTargetTx), () => setFlagTargetTx(null));
 
   const currMap: Record<string, (typeof currencies)[0]> = {};
   for (const c of currencies) currMap[c.code] = c;
@@ -1247,10 +1252,18 @@ export const SpendHistory: React.FC = () => {
 
       {/* REJECTION REASON MODAL (When user deletes an SMS from the review queue) */}
       {rejectingItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-xl">
-            <div className="flex items-start justify-between gap-3">
-              <div>
+        <div
+          onClick={() => setRejectingItem(null)}
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md max-h-[90dvh] flex flex-col overflow-hidden shadow-xl"
+          >
+            <div className="flex items-start justify-between gap-3 p-4 sm:p-5 pb-3 border-b border-slate-800 shrink-0">
+              <div className="min-w-0">
                 <h3 className="text-base font-bold text-white tracking-tight">
                   Reject SMS Transaction
                 </h3>
@@ -1261,23 +1274,25 @@ export const SpendHistory: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setRejectingItem(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                aria-label="Close"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 shrink-0 cursor-pointer"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1">
-              <div className="text-slate-300 font-semibold">{rejectingItem.merchantName}</div>
-              <div className="text-slate-400 font-mono">
-                {rejectingItem.amount} {rejectingItem.currency} · {rejectingItem.parsedDate}
+            <div className="p-4 sm:p-5 space-y-4 overflow-y-auto overscroll-contain flex-1">
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1">
+                <div className="text-slate-300 font-semibold">{rejectingItem.merchantName}</div>
+                <div className="text-slate-400 font-mono">
+                  {rejectingItem.amount} {rejectingItem.currency} · {rejectingItem.parsedDate}
+                </div>
+                <div className="text-[11px] text-slate-500 line-clamp-2 mt-1">
+                  "{rejectingItem.rawSms}"
+                </div>
               </div>
-              <div className="text-[11px] text-slate-500 line-clamp-2 mt-1">
-                "{rejectingItem.rawSms}"
-              </div>
-            </div>
 
-            <form onSubmit={submitRejection} className="space-y-3 text-xs">
+              <form onSubmit={submitRejection} className="space-y-3 text-xs">
               <div>
                 <label className="block font-medium text-slate-300 mb-2">Reason for rejection:</label>
                 <div className="space-y-1.5">
@@ -1358,29 +1373,38 @@ export const SpendHistory: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setRejectingItem(null)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                  className="px-4 min-h-[44px] rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingRejection}
-                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
+                  className="px-4 min-h-[44px] rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
                 >
                   {isSubmittingRejection ? 'Rejecting...' : 'Confirm Rejection'}
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}
 
       {/* QUICK PASTE SMS MODAL */}
       {isQuickPasteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-5 space-y-4 shadow-xl">
-            <div className="flex items-start justify-between gap-3">
-              <div>
+        <div
+          onClick={() => setIsQuickPasteOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg max-h-[90dvh] flex flex-col overflow-hidden shadow-xl"
+          >
+            <div className="flex items-start justify-between gap-3 p-4 sm:p-5 pb-3 border-b border-slate-800 shrink-0">
+              <div className="min-w-0">
                 <h3 className="text-base font-bold text-white tracking-tight">
                   Parse SMS Transaction
                 </h3>
@@ -1391,13 +1415,14 @@ export const SpendHistory: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsQuickPasteOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                aria-label="Close"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 shrink-0 cursor-pointer"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleQuickParseSms} className="space-y-3 text-xs">
+            <form onSubmit={handleQuickParseSms} className="p-4 sm:p-5 space-y-3 text-xs overflow-y-auto overscroll-contain flex-1">
               <textarea
                 rows={4}
                 value={pasteText}
@@ -1417,14 +1442,14 @@ export const SpendHistory: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsQuickPasteOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                  className="px-4 min-h-[44px] rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isParsingPaste || !pasteText.trim()}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
+                  className="px-4 min-h-[44px] rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
                 >
                   {isParsingPaste ? 'Parsing...' : 'Parse & Stage'}
                 </button>
@@ -1436,10 +1461,18 @@ export const SpendHistory: React.FC = () => {
 
       {/* FLAG SMS REVERSAL & ACTIVE RL LEARNING MODAL */}
       {flagTargetTx && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-xl">
-            <div className="flex items-start justify-between gap-3">
-              <div>
+        <div
+          onClick={() => setFlagTargetTx(null)}
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs animate-fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md max-h-[90dvh] flex flex-col overflow-hidden shadow-xl"
+          >
+            <div className="flex items-start justify-between gap-3 p-4 sm:p-5 pb-3 border-b border-slate-800 shrink-0">
+              <div className="min-w-0">
                 <h3 className="text-base font-bold text-white tracking-tight">
                   Flag SMS Transaction
                 </h3>
@@ -1450,13 +1483,14 @@ export const SpendHistory: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setFlagTargetTx(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                aria-label="Close"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 shrink-0 cursor-pointer"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={submitFlagFeedback} className="space-y-4 text-xs">
+            <form onSubmit={submitFlagFeedback} className="p-4 sm:p-5 space-y-4 text-xs overflow-y-auto overscroll-contain flex-1">
               <div className="space-y-2">
                 <label className="block font-medium text-slate-300">Why was this incorrect?</label>
                 <div className="grid grid-cols-1 gap-2">
@@ -1526,14 +1560,14 @@ export const SpendHistory: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setFlagTargetTx(null)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 cursor-pointer"
+                  className="px-4 min-h-[44px] rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submittingFlag}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white cursor-pointer disabled:opacity-50"
+                  className="px-4 min-h-[44px] rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white cursor-pointer disabled:opacity-50"
                 >
                   {submittingFlag ? 'Applying...' : 'Roll Back & Save Rule'}
                 </button>

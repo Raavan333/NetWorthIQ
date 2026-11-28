@@ -17,6 +17,7 @@ export const ScheduledTransfersManager: React.FC = () => {
   } = useApp();
 
   const [isOpenAdd, setIsOpenAdd] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState(settings.baseCurrency || 'INR');
@@ -313,24 +314,46 @@ export const ScheduledTransfersManager: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleToggleActive(st)}
-                      className={`p-1 rounded cursor-pointer ${
-                        st.isActive ? 'text-emerald-400 hover:text-emerald-300' : 'text-slate-500 hover:text-slate-400'
+                      className={`min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg cursor-pointer ${
+                        st.isActive ? 'text-emerald-400 hover:text-emerald-300 hover:bg-slate-900' : 'text-slate-500 hover:text-slate-400 hover:bg-slate-900'
                       }`}
                       title={st.isActive ? 'Pause Schedule' : 'Resume Schedule'}
+                      aria-label={st.isActive ? `Pause ${st.name}` : `Resume ${st.name}`}
                     >
                       {st.isActive ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        deleteScheduledTransfer(st.id);
-                      }}
-                      className="p-1 rounded text-slate-500 hover:text-rose-400 cursor-pointer"
-                      title="Delete Schedule"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    {confirmDeleteId === st.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await deleteScheduledTransfer(st.id);
+                            setConfirmDeleteId(null);
+                          }}
+                          className="min-h-[36px] px-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold cursor-pointer transition-colors"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="min-h-[36px] px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium cursor-pointer transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(st.id)}
+                        className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-900 cursor-pointer transition-colors"
+                        title="Delete Schedule"
+                        aria-label={`Delete ${st.name}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

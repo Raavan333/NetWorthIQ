@@ -31,16 +31,17 @@ export const BottomNav: React.FC = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-800/80 bg-slate-950/90 backdrop-blur-md px-3 py-1.5 sm:py-2">
-      <div className="max-w-md mx-auto flex items-center justify-around">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-800/80 bg-slate-950/95 backdrop-blur-md pt-1.5 safe-area-pb pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]">
+      <div className="max-w-md mx-auto flex items-center justify-around gap-1">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
             <button
+              type="button"
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer relative ${
+              className={`min-h-[48px] flex-1 min-w-0 flex flex-col items-center justify-center py-1 px-1 sm:px-3 rounded-xl transition-all cursor-pointer relative ${
                 isActive ? 'text-emerald-400 font-semibold' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -52,7 +53,7 @@ export const BottomNav: React.FC = () => {
                   </span>
                 )}
               </div>
-              <span className="text-[11px] mt-0.5 tracking-tight">{tab.label}</span>
+              <span className="text-[11px] mt-0.5 tracking-tight truncate max-w-full">{tab.label}</span>
             </button>
           );
         })}

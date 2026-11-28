@@ -28,6 +28,7 @@ import { exportFullMLReplicationState } from '../../lib/mlEngine';
 import { encryptExportData, decryptExportData } from '../../lib/crypto';
 import { downloadFile, downloadMultipleFiles, copyTextToClipboard } from '../../lib/downloadHelper';
 import { ExportDownloadModal } from '../common/ExportDownloadModal';
+import { useBackDismiss } from '../../lib/modalBackStack';
 import {
   Download,
   Upload,
@@ -104,6 +105,13 @@ export const DataManagementSection: React.FC = () => {
   const [passphrase, setPassphrase] = useState('');
   const [copiedJson, setCopiedJson] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [showWipeDialog, setShowWipeDialog] = useState(false);
+  const [wipeConfirmText, setWipeConfirmText] = useState('');
+
+  useBackDismiss(showWipeDialog, () => {
+    setShowWipeDialog(false);
+    setWipeConfirmText('');
+  });
 
   // Pre-import JSON inspector state
   const [jsonInspection, setJsonInspection] = useState<{
@@ -168,10 +176,6 @@ export const DataManagementSection: React.FC = () => {
     mimeType: string;
   } | null>(null);
   const [masterImportMode, setMasterImportMode] = useState<'append' | 'replace'>('replace');
-
-  // Wipe confirmation modal state
-  const [wipeConfirmText, setWipeConfirmText] = useState('');
-  const [showWipeDialog, setShowWipeDialog] = useState(false);
 
   const getLiveMLBundle = (): FullMLReplicationState =>
     exportFullMLReplicationState({
@@ -1554,10 +1558,21 @@ export const DataManagementSection: React.FC = () => {
 
       {/* Wipe Confirmation Dialog */}
       {showWipeDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-slate-900 border border-rose-500/50 rounded-2xl p-5 space-y-4 shadow-2xl">
+        <div
+          onClick={() => {
+            setShowWipeDialog(false);
+            setWipeConfirmText('');
+          }}
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md max-h-[90dvh] overflow-y-auto overscroll-contain bg-slate-900 border border-rose-500/50 rounded-2xl p-5 space-y-4 shadow-2xl"
+          >
             <div className="flex items-center gap-2.5 text-rose-400">
-              <AlertTriangle size={20} />
+              <AlertTriangle size={20} className="shrink-0" />
               <h4 className="text-base font-bold text-white">Confirm Data Reset</h4>
             </div>
 
@@ -1580,17 +1595,19 @@ export const DataManagementSection: React.FC = () => {
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
               <button
+                type="button"
                 onClick={() => {
                   setShowWipeDialog(false);
                   setWipeConfirmText('');
                 }}
-                className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold cursor-pointer"
+                className="px-4 min-h-[44px] rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 disabled={wipeConfirmText.trim().toUpperCase() !== 'RESET'}
                 onClick={async () => {
                   await wipeAllData();
@@ -1598,7 +1615,7 @@ export const DataManagementSection: React.FC = () => {
                   setWipeConfirmText('');
                   showStatus('info', 'All local data cleared.');
                 }}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-30 disabled:cursor-not-allowed text-white text-xs font-semibold cursor-pointer"
+                className="px-4 min-h-[44px] rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-30 disabled:cursor-not-allowed text-white text-xs font-semibold cursor-pointer"
               >
                 Confirm Reset
               </button>

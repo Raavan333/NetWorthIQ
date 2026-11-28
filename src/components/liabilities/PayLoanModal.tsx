@@ -484,7 +484,7 @@ export const PayLoanModal: React.FC<PayLoanModalProps> = ({
               {subtleFramingEnabled ? predictedPlan.whisperBody : predictedPlan.strategyRationale}
             </p>
 
-            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/80 font-mono tabular-nums text-[11px]">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-800/80 font-mono tabular-nums text-[11px]">
               <div>
                 <span className="block font-sans text-[10px] text-slate-400">
                   Predicted Principal
@@ -744,7 +744,7 @@ export const PayLoanModal: React.FC<PayLoanModalProps> = ({
           <label className="block text-xs font-semibold text-slate-300 mb-1.5">
             1. Select Payment Mode
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => setPayOption('emi')}
@@ -846,7 +846,7 @@ export const PayLoanModal: React.FC<PayLoanModalProps> = ({
           </div>
 
           {payOption === 'custom' && isExtraPrepayment && remainingLoanBalance > 0 && (
-            <div className="flex items-center justify-between gap-2 pt-1">
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
               <span className="text-[11px] text-slate-400">Post-Prepayment Adjustment:</span>
               <div className="flex items-center gap-1 p-0.5 rounded-lg bg-slate-950 border border-slate-800">
                 <button
@@ -886,7 +886,7 @@ export const PayLoanModal: React.FC<PayLoanModalProps> = ({
           )}
 
           {!isBlockedByLockIn && isExtraPrepayment && (
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 grid grid-cols-3 gap-2 font-mono tabular-nums text-[11px]">
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-2 font-mono tabular-nums text-[11px]">
               <div>
                 <span className="block text-[10px] font-sans text-slate-400">Interest Saved</span>
                 <span className="font-bold text-emerald-400">

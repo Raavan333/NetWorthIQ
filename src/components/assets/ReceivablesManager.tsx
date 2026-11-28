@@ -12,6 +12,7 @@ import { AddEditReceivableModal } from './AddEditReceivableModal';
 import { RecordRepaymentModal } from './RecordRepaymentModal';
 import { PayBillForCounterpartyModal } from './PayBillForCounterpartyModal';
 import { CounterpartyPaidMyBillModal } from './CounterpartyPaidMyBillModal';
+import { useBackDismiss } from '../../lib/modalBackStack';
 import {
   HandCoins,
   Plus,
@@ -57,6 +58,10 @@ export const ReceivablesManager: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grouped' | 'flat'>('grouped');
   const [expandedPerson, setExpandedPerson] = useState<string | null>(null);
   const [offsetNotice, setOffsetNotice] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmWriteOffId, setConfirmWriteOffId] = useState<string | null>(null);
+
+  useBackDismiss(activeModal === 'repay_peer', () => setActiveModal(null));
 
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -337,7 +342,7 @@ export const ReceivablesManager: React.FC = () => {
 
                       <div className="min-w-0 flex-1 overflow-hidden">
                         <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                          <span className="font-semibold text-slate-100 text-sm truncate max-w-[120px] xs:max-w-[180px] sm:max-w-none">
+                          <span className="font-semibold text-slate-100 text-sm truncate max-w-[140px] sm:max-w-none">
                             {person.name}
                           </span>
                           <span
@@ -360,7 +365,7 @@ export const ReceivablesManager: React.FC = () => {
                             {person.rateBuckets.map((bucket, idx) => (
                               <span
                                 key={`${bucket.direction}-${bucket.interestRatePct}`}
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800/80 text-[10px] text-slate-300 font-mono break-all xs:break-normal max-w-full"
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800/80 text-[10px] text-slate-300 font-mono break-words max-w-full"
                               >
                                 {bucket.interestRatePct > 0
                                   ? `${bucket.interestRatePct}% p.a.: ${fmt(bucket.totalWithInterest)}${
@@ -502,7 +507,7 @@ export const ReceivablesManager: React.FC = () => {
                         return (
                           <div
                             key={rec.id}
-                            className="p-2.5 rounded-lg bg-slate-900 border border-slate-800/80 flex flex-col xs:flex-row xs:items-center justify-between gap-2 text-xs overflow-hidden"
+                            className="p-2.5 rounded-lg bg-slate-900 border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs overflow-hidden"
                           >
                             <div className="min-w-0 flex-1 overflow-hidden">
                               <div className="flex flex-wrap items-center gap-1.5">
@@ -515,7 +520,7 @@ export const ReceivablesManager: React.FC = () => {
                                 >
                                   {isBorrow ? 'Borrowed' : 'Lent'}
                                 </span>
-                                <span className="text-[11px] text-slate-300 truncate max-w-[150px] xs:max-w-[200px] sm:max-w-none">
+                                <span className="text-[11px] text-slate-300 truncate max-w-[180px] sm:max-w-none">
                                   {rec.notes || (isBorrow ? 'Shared bill balance' : 'Direct loan')}
                                 </span>
                                 {isRecOverdue && (
@@ -539,8 +544,8 @@ export const ReceivablesManager: React.FC = () => {
                               </div>
                             </div>
 
-                            <div className="flex items-center justify-between xs:justify-end gap-1.5 shrink-0 pt-1 xs:pt-0 border-t xs:border-t-0 border-slate-800/60">
-                              <div className="text-left xs:text-right font-mono tabular-nums mr-1">
+                            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-1.5 shrink-0 pt-1.5 sm:pt-0 border-t sm:border-t-0 border-slate-800/60">
+                              <div className="text-left sm:text-right font-mono tabular-nums mr-1">
                                 <div className="font-bold text-slate-200">
                                   {fmt(rec.outstandingAmount + accrued, rec.currency)}
                                 </div>
@@ -558,7 +563,7 @@ export const ReceivablesManager: React.FC = () => {
                                     setSelectedReceivable(rec);
                                     setActiveModal('repay');
                                   }}
-                                  className="px-2 py-1 rounded bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-[11px] font-semibold cursor-pointer"
+                                  className="px-2.5 min-h-[36px] rounded bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-[11px] font-semibold cursor-pointer"
                                 >
                                   Collect
                                 </button>
@@ -568,7 +573,7 @@ export const ReceivablesManager: React.FC = () => {
                                   onClick={() =>
                                     openRepayPeerModal(rec.debtorName, rec.outstandingAmount + accrued)
                                   }
-                                  className="px-2 py-1 rounded bg-amber-600/20 hover:bg-amber-600/30 text-amber-200 text-[11px] font-semibold cursor-pointer"
+                                  className="px-2.5 min-h-[36px] rounded bg-amber-600/20 hover:bg-amber-600/30 text-amber-200 text-[11px] font-semibold cursor-pointer"
                                 >
                                   Pay Back
                                 </button>
@@ -580,20 +585,44 @@ export const ReceivablesManager: React.FC = () => {
                                   setSelectedReceivable(rec);
                                   setActiveModal('edit');
                                 }}
-                                className="p-1 rounded text-slate-400 hover:text-slate-200 cursor-pointer"
+                                className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 cursor-pointer"
                                 title="Edit"
+                                aria-label="Edit entry"
                               >
-                                <Edit2 size={12} />
+                                <Edit2 size={14} />
                               </button>
 
-                              <button
-                                type="button"
-                                onClick={() => deleteReceivable(rec.id)}
-                                className="p-1 rounded text-slate-400 hover:text-rose-400 cursor-pointer"
-                                title="Delete"
-                              >
-                                <Trash2 size={12} />
-                              </button>
+                              {confirmDeleteId === rec.id ? (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      deleteReceivable(rec.id);
+                                      setConfirmDeleteId(null);
+                                    }}
+                                    className="px-2 min-h-[36px] rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-semibold cursor-pointer"
+                                  >
+                                    Delete
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmDeleteId(null)}
+                                    className="px-2 min-h-[36px] rounded-lg bg-slate-800 text-slate-300 text-[11px] cursor-pointer"
+                                  >
+                                    No
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDeleteId(rec.id)}
+                                  className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 cursor-pointer"
+                                  title="Delete"
+                                  aria-label="Delete entry"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
                             </div>
                           </div>
                         );
@@ -628,7 +657,7 @@ export const ReceivablesManager: React.FC = () => {
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0 flex-1 overflow-hidden">
                     <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                      <span className="font-semibold text-slate-100 text-sm truncate max-w-[130px] xs:max-w-[200px] sm:max-w-none">
+                      <span className="font-semibold text-slate-100 text-sm truncate max-w-[140px] sm:max-w-none">
                         {rec.debtorName}
                       </span>
                       <span
@@ -706,31 +735,83 @@ export const ReceivablesManager: React.FC = () => {
                         setSelectedReceivable(rec);
                         setActiveModal('edit');
                       }}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 cursor-pointer"
+                      className="min-w-[36px] min-h-[36px] rounded-lg flex items-center justify-center bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 cursor-pointer"
                       title="Edit"
+                      aria-label="Edit entry"
                     >
-                      <Edit2 size={13} />
+                      <Edit2 size={14} />
                     </button>
 
-                    {!isBorrow && (
+                    {!isBorrow &&
+                      (confirmWriteOffId === rec.id ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              writeOffReceivable(rec.id, 'Uncollectible debt');
+                              setConfirmWriteOffId(null);
+                            }}
+                            className="px-2 min-h-[36px] rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-semibold cursor-pointer"
+                          >
+                            Write Off
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmWriteOffId(null)}
+                            className="px-2 min-h-[36px] rounded-lg bg-slate-800 text-slate-300 text-[11px] cursor-pointer"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setConfirmDeleteId(null);
+                            setConfirmWriteOffId(rec.id);
+                          }}
+                          className="min-w-[36px] min-h-[36px] rounded-lg flex items-center justify-center bg-slate-800/80 hover:bg-amber-950/40 text-slate-300 hover:text-amber-400 border border-slate-700/80 cursor-pointer"
+                          title="Write off"
+                          aria-label="Write off debt"
+                        >
+                          <FileX size={14} />
+                        </button>
+                      ))}
+
+                    {confirmDeleteId === rec.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            deleteReceivable(rec.id);
+                            setConfirmDeleteId(null);
+                          }}
+                          className="px-2 min-h-[36px] rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-semibold cursor-pointer"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="px-2 min-h-[36px] rounded-lg bg-slate-800 text-slate-300 text-[11px] cursor-pointer"
+                        >
+                          No
+                        </button>
+                      </div>
+                    ) : (
                       <button
                         type="button"
-                        onClick={() => writeOffReceivable(rec.id, 'Uncollectible debt')}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-800/80 hover:bg-amber-950/40 text-slate-300 hover:text-amber-400 border border-slate-700/80 cursor-pointer"
-                        title="Write off"
+                        onClick={() => {
+                          setConfirmWriteOffId(null);
+                          setConfirmDeleteId(rec.id);
+                        }}
+                        className="min-w-[36px] min-h-[36px] rounded-lg flex items-center justify-center bg-slate-800/80 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-700/80 cursor-pointer"
+                        title="Delete"
+                        aria-label="Delete entry"
                       >
-                        <FileX size={13} />
+                        <Trash2 size={14} />
                       </button>
                     )}
-
-                    <button
-                      type="button"
-                      onClick={() => deleteReceivable(rec.id)}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-800/80 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-700/80 cursor-pointer"
-                      title="Delete"
-                    >
-                      <Trash2 size={13} />
-                    </button>
                   </div>
                 </div>
               </div>
@@ -741,11 +822,19 @@ export const ReceivablesManager: React.FC = () => {
 
       {/* Pay Back Borrowed Peer Modal */}
       {activeModal === 'repay_peer' && selectedDebtorName && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-slate-800">
-              <div>
-                <h2 className="text-sm font-semibold text-slate-100">
+        <div
+          onClick={() => setActiveModal(null)}
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm max-h-[90dvh] bg-slate-900 border border-slate-800 rounded-xl shadow-2xl flex flex-col overflow-hidden"
+          >
+            <div className="flex items-center justify-between p-4 border-b border-slate-800 shrink-0">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold text-slate-100 truncate">
                   Pay Back {selectedDebtorName}
                 </h2>
                 <p className="text-[11px] text-slate-400">
@@ -755,13 +844,14 @@ export const ReceivablesManager: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveModal(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 cursor-pointer"
+                aria-label="Close"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 cursor-pointer shrink-0"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleConfirmRepayPeer} className="p-4 space-y-3 text-xs">
+            <form onSubmit={handleConfirmRepayPeer} className="p-4 space-y-3 text-xs overflow-y-auto overscroll-contain flex-1">
               {repayPeerError && (
                 <div className="p-2.5 rounded-lg bg-rose-950/40 border border-rose-500/30 text-rose-300">
                   {repayPeerError}
@@ -801,18 +891,18 @@ export const ReceivablesManager: React.FC = () => {
                 </select>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setActiveModal(null)}
-                  className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium cursor-pointer"
+                  className="px-4 min-h-[44px] rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isRepayingPeer}
-                  className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold cursor-pointer disabled:opacity-50"
+                  className="px-4 min-h-[44px] rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold cursor-pointer disabled:opacity-50"
                 >
                   {isRepayingPeer ? 'Settling...' : 'Confirm Payment'}
                 </button>

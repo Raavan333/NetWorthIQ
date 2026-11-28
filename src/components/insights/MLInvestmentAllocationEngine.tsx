@@ -9,6 +9,8 @@ import {
   MLModelFeedbackRecord,
 } from '../../types';
 import { formatMoney, formatCompactMoney } from '../../lib/formatters';
+import { safeJsonParse } from '../../lib/storage';
+import { useBackDismiss } from '../../lib/modalBackStack';
 import {
   Brain,
   Sparkles,
@@ -67,20 +69,17 @@ export const MLInvestmentAllocationEngine: React.FC = () => {
 
   // ML Weights & Biases state
   const [modelWeights, setModelWeights] = useState<MLInvestmentModelWeights>(() => {
-    try {
-      const stored = localStorage.getItem(ML_WEIGHTS_STORAGE_KEY);
-      if (stored) return JSON.parse(stored);
-    } catch {}
+    const parsed = safeJsonParse<unknown>(localStorage.getItem(ML_WEIGHTS_STORAGE_KEY), null);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return { ...DEFAULT_ML_WEIGHTS, ...(parsed as Partial<MLInvestmentModelWeights>) };
+    }
     return DEFAULT_ML_WEIGHTS;
   });
 
   // ML Feedback log
   const [feedbackLog, setFeedbackLog] = useState<MLModelFeedbackRecord[]>(() => {
-    try {
-      const stored = localStorage.getItem(ML_FEEDBACK_LOG_KEY);
-      if (stored) return JSON.parse(stored);
-    } catch {}
-    return [];
+    const parsed = safeJsonParse<unknown>(localStorage.getItem(ML_FEEDBACK_LOG_KEY), []);
+    return Array.isArray(parsed) ? (parsed as MLModelFeedbackRecord[]) : [];
   });
 
   // Interactive feedback inputs
@@ -89,6 +88,8 @@ export const MLInvestmentAllocationEngine: React.FC = () => {
   const [reportedGainLoss, setReportedGainLoss] = useState<string>('');
   const [feedbackNote, setFeedbackNote] = useState<string>('');
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
+
+  useBackDismiss(showFeedbackModal, () => setShowFeedbackModal(false));
 
   // Sync weights to localStorage
   const saveWeights = (newWeights: MLInvestmentModelWeights) => {
@@ -613,94 +614,104 @@ export const MLInvestmentAllocationEngine: React.FC = () => {
 
       {/* MODAL: REPORT REALISED / UNREALISED GAINS & LOSSES */}
       {showFeedbackModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-cyan-500/40 p-5 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-cyan-400 font-bold text-sm">
-                <TrendingUp size={18} />
-                <h3 className="text-white text-base">Report Realised / Unrealised Returns</h3>
+        <div
+          onClick={() => setShowFeedbackModal(false)}
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md max-h-[90dvh] rounded-2xl bg-slate-900 border border-cyan-500/40 flex flex-col overflow-hidden shadow-2xl"
+          >
+            <div className="flex items-center justify-between gap-2 p-4 sm:p-5 pb-3 border-b border-slate-800 shrink-0">
+              <div className="flex items-center gap-2 text-cyan-400 font-bold text-sm min-w-0">
+                <TrendingUp size={18} className="shrink-0" />
+                <h3 className="text-white text-base truncate">Report Realised / Unrealised Returns</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowFeedbackModal(false)}
-                className="text-slate-400 hover:text-white text-xs"
+                className="px-2.5 min-h-[40px] rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-xs cursor-pointer shrink-0"
               >
                 Cancel
               </button>
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed">
-              When you report your actual investment gains or losses, the ML model calculates reward signals and automatically tunes its market cap weights and risk bias.
-            </p>
+            <div className="p-4 sm:p-5 space-y-4 overflow-y-auto overscroll-contain flex-1">
+              <p className="text-xs text-slate-300 leading-relaxed">
+                When you report your actual investment gains or losses, the ML model calculates reward signals and automatically tunes its market cap weights and risk bias.
+              </p>
 
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Market Cap Category:
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { id: 'mega_cap', label: 'Mega Cap Bluechips' },
-                    { id: 'large_cap', label: 'Large Cap Leaders' },
-                    { id: 'mid_cap', label: 'Mid Cap Growth' },
-                    { id: 'small_cap', label: 'Small Cap Alpha' },
-                  ].map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setFeedbackMarketCap(c.id as MarketCapCategory)}
-                      className={`p-2 rounded-xl border text-xs text-left cursor-pointer transition-all ${
-                        feedbackMarketCap === c.id
-                          ? 'border-cyan-500 bg-cyan-950/40 text-white font-bold'
-                          : 'border-slate-800 bg-slate-950 text-slate-400'
-                      }`}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Market Cap Category:
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {[
+                      { id: 'mega_cap', label: 'Mega Cap Bluechips' },
+                      { id: 'large_cap', label: 'Large Cap Leaders' },
+                      { id: 'mid_cap', label: 'Mid Cap Growth' },
+                      { id: 'small_cap', label: 'Small Cap Alpha' },
+                    ].map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setFeedbackMarketCap(c.id as MarketCapCategory)}
+                        className={`p-2.5 min-h-[40px] rounded-xl border text-xs text-left cursor-pointer transition-all ${
+                          feedbackMarketCap === c.id
+                            ? 'border-cyan-500 bg-cyan-950/40 text-white font-bold'
+                            : 'border-slate-800 bg-slate-950 text-slate-400'
+                        }`}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Amount Gained (+) or Lost (-):
-                </label>
-                <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2">
-                  <span className="text-sm font-bold text-slate-400">{currSym}</span>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Amount Gained (+) or Lost (-):
+                  </label>
+                  <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2">
+                    <span className="text-sm font-bold text-slate-400">{currSym}</span>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="e.g. +15000 or -4500"
+                      value={reportedGainLoss}
+                      onChange={(e) => setReportedGainLoss(e.target.value)}
+                      className="w-full bg-transparent text-sm text-white font-mono focus:outline-none"
+                      autoFocus
+                    />
+                  </div>
+                  <span className="text-[10px] text-slate-500 block mt-1">
+                    Positive shifts model weight to that category; negative re-allocates toward safety.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Optional Note / Strategy Context:
+                  </label>
                   <input
-                    type="number"
-                    step="any"
-                    placeholder="e.g. +15000 or -4500"
-                    value={reportedGainLoss}
-                    onChange={(e) => setReportedGainLoss(e.target.value)}
-                    className="w-full bg-transparent text-sm text-white font-mono focus:outline-none"
-                    autoFocus
+                    type="text"
+                    placeholder="e.g. Booked profit on quarterly earnings breakout"
+                    value={feedbackNote}
+                    onChange={(e) => setFeedbackNote(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200"
                   />
                 </div>
-                <span className="text-[10px] text-slate-500 block mt-1">
-                  Positive shifts model weight to that category; negative re-allocates toward safety.
-                </span>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Optional Note / Strategy Context:
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Booked profit on quarterly earnings breakout"
-                  value={feedbackNote}
-                  onChange={(e) => setFeedbackNote(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200"
-                />
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+            <div className="flex justify-end gap-2 p-4 border-t border-slate-800 shrink-0">
               <button
                 type="button"
                 onClick={() => setShowFeedbackModal(false)}
-                className="px-3.5 py-1.5 rounded-xl bg-slate-800 text-xs font-semibold text-slate-300 hover:bg-slate-700 cursor-pointer"
+                className="px-4 min-h-[44px] rounded-xl bg-slate-800 text-xs font-semibold text-slate-300 hover:bg-slate-700 cursor-pointer"
               >
                 Close
               </button>
@@ -708,9 +719,9 @@ export const MLInvestmentAllocationEngine: React.FC = () => {
                 type="button"
                 onClick={handleSubmitPnlFeedback}
                 disabled={!reportedGainLoss || isNaN(parseFloat(reportedGainLoss))}
-                className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 text-white font-bold text-xs cursor-pointer shadow-md shadow-emerald-600/30 transition-all"
+                className="px-4 min-h-[44px] rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 text-white font-bold text-xs cursor-pointer shadow-md shadow-emerald-600/30 transition-all"
               >
-                Submit Feedback & Tune Weights
+                Submit Feedback &amp; Tune Weights
               </button>
             </div>
           </div>

@@ -15,6 +15,7 @@ import {
   getStoredClosedLoopMLState,
 } from '../../lib/mlEngine';
 import { formatMoney } from '../../lib/formatters';
+import { useBackDismiss } from '../../lib/modalBackStack';
 import { X, HandCoins, CreditCard, Landmark, AlertCircle, Sparkles, Building2 } from 'lucide-react';
 
 interface AddEditReceivableModalProps {
@@ -112,6 +113,8 @@ export const AddEditReceivableModal: React.FC<AddEditReceivableModalProps> = ({
 
   const [notes, setNotes] = useState(receivable?.notes || '');
   const [error, setError] = useState<string | null>(null);
+
+  useBackDismiss(true, onClose);
 
   useEffect(() => {
     if (!isEditing && !fundingSourceId) {
@@ -366,19 +369,27 @@ export const AddEditReceivableModal: React.FC<AddEditReceivableModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs overflow-y-auto">
-      <div className="w-full max-w-lg my-auto bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden animate-fade-in max-h-[92vh] flex flex-col">
+    <div
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg my-auto bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden animate-fade-in max-h-[92dvh] flex flex-col"
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-800 shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 shrink-0">
               <HandCoins size={18} />
             </div>
-            <div>
-              <h2 className="text-base font-semibold text-slate-100">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold text-slate-100 truncate">
                 {isEditing ? 'Edit Money Lent' : 'Record Money Lent (Receivable)'}
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-400 truncate">
                 Single-deduction source accounting, broker fee pass-through &amp; card optimization
               </p>
             </div>
@@ -386,14 +397,15 @@ export const AddEditReceivableModal: React.FC<AddEditReceivableModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
+            aria-label="Close"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSave} className="p-4 space-y-3.5 text-xs overflow-y-auto">
+        <form onSubmit={handleSave} className="p-4 space-y-3.5 text-xs overflow-y-auto overscroll-contain flex-1">
           {error && (
             <div className="p-2.5 rounded-lg bg-rose-950/40 border border-rose-500/30 text-rose-300 flex items-center gap-2">
               <AlertCircle size={14} className="shrink-0" />
@@ -415,8 +427,8 @@ export const AddEditReceivableModal: React.FC<AddEditReceivableModalProps> = ({
           </div>
 
           {/* Disbursed Amount & Currency */}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="col-span-2 space-y-1">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="sm:col-span-2 space-y-1">
               <label className="font-medium text-slate-300">Amount Handed to Borrower *</label>
               <input
                 type="number"
@@ -446,7 +458,7 @@ export const AddEditReceivableModal: React.FC<AddEditReceivableModalProps> = ({
           </div>
 
           {/* Dates & Interest */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div className="space-y-1">
               <label className="font-medium text-slate-300">Date Lent</label>
               <input
@@ -738,7 +750,7 @@ export const AddEditReceivableModal: React.FC<AddEditReceivableModalProps> = ({
             )}
 
             {disbursedAmountNum > 0 && (
-              <div className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-700/80 grid grid-cols-3 gap-2 text-[11px]">
+              <div className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-700/80 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
                 <div>
                   <div className="text-slate-400">Net Lent</div>
                   <div className="font-mono font-semibold text-slate-200">{fmt(disbursedAmountNum)}</div>
@@ -824,17 +836,17 @@ export const AddEditReceivableModal: React.FC<AddEditReceivableModalProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
             <button
               type="button"
               onClick={onClose}
-              className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition-colors cursor-pointer"
+              className="px-4 min-h-[44px] rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors cursor-pointer"
+              className="px-4 min-h-[44px] rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors cursor-pointer"
             >
               {isEditing ? 'Save Changes' : 'Record Receivable'}
             </button>

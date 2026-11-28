@@ -1,6 +1,6 @@
 /**
  * IndexedDB offline storage engine for NetWorthIQ
- * Completely offline, durable, zero external tracking
+ * Completely offline, durable, atomic transactions, zero external tracking
  */
 
 const DB_NAME = 'NetWorthIQ_Offline_DB';
@@ -41,38 +41,123 @@ export interface AcidStoreMutation<T = any> {
   key?: IDBValidKey;
 }
 
+/**
+ * Fault-tolerant JSON parser that never throws on corrupt local storage payloads.
+ */
+export function safeJsonParse<T>(
+  raw: string | null | undefined,
+  fallback: T,
+  onCorrupt?: () => void
+): T {
+  if (!raw || typeof raw !== 'string') return fallback;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed === null || parsed === undefined) return fallback;
+    if (Array.isArray(fallback) && !Array.isArray(parsed)) {
+      onCorrupt?.();
+      return fallback;
+    }
+    if (
+      typeof fallback === 'object' &&
+      fallback !== null &&
+      !Array.isArray(fallback) &&
+      (typeof parsed !== 'object' || Array.isArray(parsed))
+    ) {
+      onCorrupt?.();
+      return fallback;
+    }
+    return parsed as T;
+  } catch {
+    onCorrupt?.();
+    return fallback;
+  }
+}
+
+/**
+ * Strips null/primitive entries from recovered collections so corrupt elements never crash UI lists.
+ */
+export function sanitizeObjectArray<T extends Record<string, any>>(
+  input: unknown,
+  requiredKey?: string
+): T[] {
+  if (!Array.isArray(input)) return [];
+  return input.filter((item): item is T => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+    if (requiredKey && (item[requiredKey] === undefined || item[requiredKey] === null || item[requiredKey] === '')) {
+      return false;
+    }
+    return true;
+  });
+}
+
 class IndexedDbStorage {
   private dbPromise: Promise<IDBDatabase> | null = null;
+  private recoveredCorruptionCount = 0;
+
+  public consumeRecoveryCount(): number {
+    const count = this.recoveredCorruptionCount;
+    this.recoveredCorruptionCount = 0;
+    return count;
+  }
+
+  private markCorruptRecovery() {
+    this.recoveredCorruptionCount += 1;
+  }
 
   private async openDb(): Promise<IDBDatabase> {
     if (this.dbPromise) return this.dbPromise;
 
-    this.dbPromise = new Promise((resolve, reject) => {
+    this.dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
       if (typeof window === 'undefined' || !window.indexedDB) {
+        this.dbPromise = null;
         reject(new Error('IndexedDB not supported'));
         return;
       }
 
-      const request = window.indexedDB.open(DB_NAME, DB_VERSION);
+      try {
+        const request = window.indexedDB.open(DB_NAME, DB_VERSION);
 
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        for (const store of STORE_NAMES) {
-          if (!db.objectStoreNames.contains(store)) {
-            // using key 'id' for lists or 'key' for singletons
-            if (['settings', 'theme', 'taxRules'].includes(store)) {
-              db.createObjectStore(store);
-            } else if (store === 'currencies') {
-              db.createObjectStore(store, { keyPath: 'code' });
-            } else {
-              db.createObjectStore(store, { keyPath: 'id' });
+        request.onupgradeneeded = (event) => {
+          const db = (event.target as IDBOpenDBRequest).result;
+          for (const store of STORE_NAMES) {
+            if (!db.objectStoreNames.contains(store)) {
+              // using key 'id' for lists or 'key' for singletons
+              if (['settings', 'theme', 'taxRules'].includes(store)) {
+                db.createObjectStore(store);
+              } else if (store === 'currencies') {
+                db.createObjectStore(store, { keyPath: 'code' });
+              } else {
+                db.createObjectStore(store, { keyPath: 'id' });
+              }
             }
           }
-        }
-      };
+        };
 
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result;
+          db.onversionchange = () => {
+            db.close();
+            this.dbPromise = null;
+          };
+          db.onclose = () => {
+            this.dbPromise = null;
+          };
+          resolve(db);
+        };
+
+        request.onerror = () => {
+          this.dbPromise = null;
+          reject(request.error || new Error('Failed to open IndexedDB'));
+        };
+
+        request.onblocked = () => {
+          this.dbPromise = null;
+          reject(new Error('IndexedDB open blocked by another connection'));
+        };
+      } catch (err) {
+        this.dbPromise = null;
+        reject(err);
+      }
     });
 
     return this.dbPromise;
@@ -160,14 +245,18 @@ class IndexedDbStorage {
             if (mut.mode === 'setAll') {
               localStorage.setItem(lsKey, JSON.stringify(mut.items || []));
             } else if (mut.mode === 'put') {
-              const existing: any[] = JSON.parse(localStorage.getItem(lsKey) || '[]');
-              const itemId = (mut.item as any)?.id ?? mut.key;
+              const existing = sanitizeObjectArray<any>(
+                safeJsonParse<any[]>(localStorage.getItem(lsKey), [], () => this.markCorruptRecovery())
+              );
+              const itemId = (mut.item as any)?.id ?? (mut.item as any)?.code ?? mut.key;
               const next = existing.some((x) => (x?.id ?? x?.code) === itemId)
                 ? existing.map((x) => ((x?.id ?? x?.code) === itemId ? mut.item : x))
                 : [mut.item, ...existing];
               localStorage.setItem(lsKey, JSON.stringify(next));
             } else if (mut.mode === 'delete' && mut.key !== undefined) {
-              const existing: any[] = JSON.parse(localStorage.getItem(lsKey) || '[]');
+              const existing = sanitizeObjectArray<any>(
+                safeJsonParse<any[]>(localStorage.getItem(lsKey), [], () => this.markCorruptRecovery())
+              );
               localStorage.setItem(
                 lsKey,
                 JSON.stringify(existing.filter((x) => (x?.id ?? x?.code) !== mut.key))
@@ -196,17 +285,19 @@ class IndexedDbStorage {
   async getAll<T>(storeName: StoreName): Promise<T[]> {
     try {
       const db = await this.openDb();
-      return new Promise((resolve, reject) => {
+      return await new Promise<T[]>((resolve, reject) => {
         const tx = db.transaction(storeName, 'readonly');
         const store = tx.objectStore(storeName);
         const req = store.getAll();
-        req.onsuccess = () => resolve((req.result as T[]) || []);
+        req.onsuccess = () => resolve(Array.isArray(req.result) ? (req.result as T[]) : []);
         req.onerror = () => reject(req.error);
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error('Read transaction aborted'));
       });
     } catch {
       if (typeof localStorage === 'undefined') return [];
       const raw = localStorage.getItem(`nwiq_${storeName}`);
-      return raw ? JSON.parse(raw) : [];
+      return safeJsonParse<T[]>(raw, [], () => this.markCorruptRecovery());
     }
   }
 
@@ -214,18 +305,38 @@ class IndexedDbStorage {
   async put<T>(storeName: StoreName, item: T, key?: IDBValidKey): Promise<void> {
     try {
       const db = await this.openDb();
-      return new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
-        const req = key !== undefined ? store.put(item, key) : store.put(item);
-        req.onsuccess = () => {
-          this.mirrorToLocal(storeName);
-          resolve();
-        };
-        req.onerror = () => reject(req.error);
+        if (key !== undefined) {
+          store.put(item, key);
+        } else {
+          store.put(item);
+        }
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error || new Error('Put transaction failed'));
+        tx.onabort = () => reject(tx.error || new Error('Put transaction aborted'));
       });
+      await this.mirrorToLocal(storeName);
     } catch {
-      this.mirrorSingleToLocal(storeName, item, key);
+      if (key !== undefined) {
+        this.mirrorSingleToLocal(storeName, item, key);
+      } else if (typeof localStorage !== 'undefined') {
+        try {
+          const lsKey = `nwiq_${storeName}`;
+          const existing = sanitizeObjectArray<any>(
+            safeJsonParse<any[]>(localStorage.getItem(lsKey), [], () => this.markCorruptRecovery())
+          );
+          const itemId = (item as any)?.id ?? (item as any)?.code;
+          const next =
+            itemId !== undefined && existing.some((x) => (x?.id ?? x?.code) === itemId)
+              ? existing.map((x) => ((x?.id ?? x?.code) === itemId ? item : x))
+              : [item, ...existing];
+          localStorage.setItem(lsKey, JSON.stringify(next));
+        } catch {
+          // ignore localStorage quota errors
+        }
+      }
     }
   }
 
@@ -233,7 +344,7 @@ class IndexedDbStorage {
   async setAll<T>(storeName: StoreName, items: T[]): Promise<void> {
     try {
       const db = await this.openDb();
-      return new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
         store.clear();
@@ -250,20 +361,31 @@ class IndexedDbStorage {
           }
           resolve();
         };
-        tx.onerror = () => reject(tx.error);
+        tx.onerror = () => reject(tx.error || new Error('setAll transaction failed'));
+        tx.onabort = () => reject(tx.error || new Error('setAll transaction aborted'));
       });
     } catch {
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(`nwiq_${storeName}`, JSON.stringify(items));
+        try {
+          localStorage.setItem(`nwiq_${storeName}`, JSON.stringify(items));
+        } catch {
+          // ignore localStorage quota limits
+        }
       }
     }
   }
 
   // Single singleton get/set (e.g. settings)
   async getSingleton<T>(storeName: StoreName, key: string = 'current'): Promise<T | null> {
+    const readLocalFallback = (): T | null => {
+      if (typeof localStorage === 'undefined') return null;
+      const raw = localStorage.getItem(`nwiq_${storeName}_${key}`);
+      return safeJsonParse<T | null>(raw, null, () => this.markCorruptRecovery());
+    };
+
     try {
       const db = await this.openDb();
-      return new Promise((resolve, reject) => {
+      return await new Promise<T | null>((resolve) => {
         const tx = db.transaction(storeName, 'readonly');
         const store = tx.objectStore(storeName);
         const req = store.get(key);
@@ -271,30 +393,25 @@ class IndexedDbStorage {
           if (req.result !== undefined) {
             resolve(req.result as T);
           } else {
-            const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(`nwiq_${storeName}_${key}`) : null;
-            resolve(raw ? JSON.parse(raw) : null);
+            resolve(readLocalFallback());
           }
         };
-        req.onerror = () => {
-          const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(`nwiq_${storeName}_${key}`) : null;
-          resolve(raw ? JSON.parse(raw) : null);
-        };
+        req.onerror = () => resolve(readLocalFallback());
+        tx.onerror = () => resolve(readLocalFallback());
       });
     } catch {
-      if (typeof localStorage === 'undefined') return null;
-      const raw = localStorage.getItem(`nwiq_${storeName}_${key}`);
-      return raw ? JSON.parse(raw) : null;
+      return readLocalFallback();
     }
   }
 
   async setSingleton<T>(storeName: StoreName, value: T, key: string = 'current'): Promise<void> {
     try {
       const db = await this.openDb();
-      return new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
-        const req = store.put(value, key);
-        req.onsuccess = () => {
+        store.put(value, key);
+        tx.oncomplete = () => {
           try {
             if (typeof localStorage !== 'undefined') {
               localStorage.setItem(`nwiq_${storeName}_${key}`, JSON.stringify(value));
@@ -304,11 +421,16 @@ class IndexedDbStorage {
           }
           resolve();
         };
-        req.onerror = () => reject(req.error);
+        tx.onerror = () => reject(tx.error || new Error('setSingleton failed'));
+        tx.onabort = () => reject(tx.error || new Error('setSingleton aborted'));
       });
     } catch {
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(`nwiq_${storeName}_${key}`, JSON.stringify(value));
+        try {
+          localStorage.setItem(`nwiq_${storeName}_${key}`, JSON.stringify(value));
+        } catch {
+          // ignore
+        }
       }
     }
   }
@@ -317,36 +439,68 @@ class IndexedDbStorage {
   async delete(storeName: StoreName, key: IDBValidKey): Promise<void> {
     try {
       const db = await this.openDb();
-      return new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
-        const req = store.delete(key);
-        req.onsuccess = () => {
-          this.mirrorToLocal(storeName);
-          resolve();
-        };
-        req.onerror = () => reject(req.error);
+        store.delete(key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error || new Error('Delete transaction failed'));
+        tx.onabort = () => reject(tx.error || new Error('Delete transaction aborted'));
       });
+      await this.mirrorToLocal(storeName);
     } catch {
-      // Local fallback
+      if (typeof localStorage !== 'undefined') {
+        try {
+          const lsKey = `nwiq_${storeName}`;
+          const existing = sanitizeObjectArray<any>(
+            safeJsonParse<any[]>(localStorage.getItem(lsKey), [], () => this.markCorruptRecovery())
+          );
+          localStorage.setItem(
+            lsKey,
+            JSON.stringify(existing.filter((x) => (x?.id ?? x?.code) !== key))
+          );
+          localStorage.removeItem(`nwiq_${storeName}_${String(key)}`);
+        } catch {
+          // ignore
+        }
+      }
     }
   }
 
-  // Clear all stores
+  // Clear all stores atomically
   async clearAll(): Promise<void> {
     try {
       const db = await this.openDb();
-      for (const store of STORE_NAMES) {
-        const tx = db.transaction(store, 'readwrite');
-        tx.objectStore(store).clear();
-      }
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction([...STORE_NAMES], 'readwrite');
+        for (const store of STORE_NAMES) {
+          tx.objectStore(store).clear();
+        }
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error || new Error('clearAll transaction failed'));
+        tx.onabort = () => reject(tx.error || new Error('clearAll transaction aborted'));
+      });
     } catch {
-      // ignore
+      // ignore IndexedDB errors during wipe and still purge localStorage mirrors
     }
     if (typeof localStorage !== 'undefined') {
-      for (const store of STORE_NAMES) {
-        localStorage.removeItem(`nwiq_${store}`);
-        localStorage.removeItem(`nwiq_${store}_current`);
+      try {
+        for (const store of STORE_NAMES) {
+          localStorage.removeItem(`nwiq_${store}`);
+          localStorage.removeItem(`nwiq_${store}_current`);
+        }
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('nwiq_') || k.startsWith('networthiq_'))) {
+            keysToRemove.push(k);
+          }
+        }
+        for (const k of keysToRemove) {
+          localStorage.removeItem(k);
+        }
+      } catch {
+        // ignore
       }
     }
   }
@@ -364,7 +518,7 @@ class IndexedDbStorage {
   private mirrorSingleToLocal(storeName: StoreName, item: unknown, key?: IDBValidKey) {
     try {
       if (typeof localStorage === 'undefined') return;
-      if (key) {
+      if (key !== undefined) {
         localStorage.setItem(`nwiq_${storeName}_${String(key)}`, JSON.stringify(item));
       }
     } catch {

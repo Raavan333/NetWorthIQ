@@ -12,6 +12,7 @@ import { PayLoanModal } from './PayLoanModal';
 import { LogCashbackModal } from './LogCashbackModal';
 import { CreditCardEmiModal } from './CreditCardEmiModal';
 import { DebtStrategyCard } from './DebtStrategyCard';
+import { Modal } from '../common/Modal';
 import {
   CreditCard,
   Building2,
@@ -65,6 +66,7 @@ export const LiabilitiesView: React.FC = () => {
   const [selectedLoanForPay, setSelectedLoanForPay] = useState<Liability | null>(null);
   const [expandedScheduleLoanId, setExpandedScheduleLoanId] = useState<string | null>(null);
   const [emiCard, setEmiCard] = useState<Liability | null>(null);
+  const [liabilityToDelete, setLiabilityToDelete] = useState<Liability | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   const baseCurr = settings.baseCurrency || 'INR';
@@ -265,7 +267,7 @@ export const LiabilitiesView: React.FC = () => {
                   }`}
                 >
                   {/* Card Header */}
-                  <div className="flex flex-col xs:flex-row xs:items-start justify-between gap-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
                     <div className="min-w-0 flex-1 overflow-hidden">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="text-base font-bold text-white break-words truncate max-w-full">{getSafeLiabilityName(card)}</h4>
@@ -285,7 +287,7 @@ export const LiabilitiesView: React.FC = () => {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0 self-end xs:self-auto overflow-x-auto no-scrollbar max-w-full">
+                    <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto overflow-x-auto no-scrollbar max-w-full">
                       {(card.outstanding || 0) > 0 && (
                         <button
                           onClick={() => setEmiCard(card)}
@@ -334,7 +336,7 @@ export const LiabilitiesView: React.FC = () => {
                                   setEditingLiability(card);
                                   setIsAddCardOpen(true);
                                 }}
-                                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
+                                className="px-2.5 py-2 min-h-[38px] rounded-lg text-xs font-semibold text-slate-200 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
                               >
                                 <Edit2 size={13} className="shrink-0 text-slate-400" />
                                 <span>Edit</span>
@@ -344,9 +346,9 @@ export const LiabilitiesView: React.FC = () => {
                                 role="menuitem"
                                 onClick={() => {
                                   setActiveMenuId(null);
-                                  deleteLiability(card.id);
+                                  setLiabilityToDelete(card);
                                 }}
-                                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer text-left w-full transition-colors"
+                                className="px-2.5 py-2 min-h-[38px] rounded-lg text-xs font-semibold text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer text-left w-full transition-colors"
                               >
                                 <Trash2 size={13} className="shrink-0 text-rose-400" />
                                 <span>Delete</span>
@@ -589,7 +591,7 @@ export const LiabilitiesView: React.FC = () => {
                                   setEditingLiability(card);
                                   setIsAddCardOpen(true);
                                 }}
-                                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
+                                className="px-2.5 py-2 min-h-[38px] rounded-lg text-xs font-semibold text-slate-200 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
                               >
                                 <Edit2 size={13} className="shrink-0 text-slate-400" />
                                 <span>Edit</span>
@@ -599,9 +601,9 @@ export const LiabilitiesView: React.FC = () => {
                                 role="menuitem"
                                 onClick={() => {
                                   setActiveMenuId(null);
-                                  deleteLiability(card.id);
+                                  setLiabilityToDelete(card);
                                 }}
-                                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer text-left w-full transition-colors"
+                                className="px-2.5 py-2 min-h-[38px] rounded-lg text-xs font-semibold text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer text-left w-full transition-colors"
                               >
                                 <Trash2 size={13} className="shrink-0 text-rose-400" />
                                 <span>Delete</span>
@@ -689,9 +691,9 @@ export const LiabilitiesView: React.FC = () => {
 
                   {/* ATM Monthly Usage Tracker (Active for hybrid debit functionality) */}
                   <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 text-[11px] space-y-1.5">
-                    <div className="flex justify-between items-center text-slate-400 font-semibold">
+                    <div className="flex flex-wrap justify-between items-center gap-1.5 text-slate-400 font-semibold">
                       <span>ATM Free Limits (Non-Metro: {nonMetroLimit} | Metro: {metroLimit})</span>
-                      <div className="flex gap-1">
+                      <div className="flex flex-wrap gap-1">
                         <button
                           type="button"
                           onClick={() => logDebitCardAtmWithdrawal(card.id, 'non_metro')}
@@ -810,7 +812,7 @@ export const LiabilitiesView: React.FC = () => {
                                   setEditingLiability(card);
                                   setIsAddCardOpen(true);
                                 }}
-                                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
+                                className="px-2.5 py-2 min-h-[38px] rounded-lg text-xs font-semibold text-slate-200 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
                               >
                                 <Edit2 size={13} className="shrink-0 text-slate-400" />
                                 <span>Edit</span>
@@ -820,9 +822,9 @@ export const LiabilitiesView: React.FC = () => {
                                 role="menuitem"
                                 onClick={() => {
                                   setActiveMenuId(null);
-                                  deleteLiability(card.id);
+                                  setLiabilityToDelete(card);
                                 }}
-                                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer text-left w-full transition-colors"
+                                className="px-2.5 py-2 min-h-[38px] rounded-lg text-xs font-semibold text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer text-left w-full transition-colors"
                               >
                                 <Trash2 size={13} className="shrink-0 text-rose-400" />
                                 <span>Delete</span>
@@ -896,9 +898,9 @@ export const LiabilitiesView: React.FC = () => {
                   </div>
 
                   {/* Action buttons to log ATM withdrawal */}
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-800/70 text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/70 text-xs">
                     <span className="text-[11px] text-slate-400">Log ATM Withdrawal:</span>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => logDebitCardAtmWithdrawal(card.id, 'non_metro')}
@@ -974,7 +976,7 @@ export const LiabilitiesView: React.FC = () => {
                   key={loan.id}
                   className="rounded-2xl bg-slate-900 border border-slate-800 p-4 hover:border-slate-700 transition-all shadow-sm relative overflow-hidden"
                 >
-                  <div className="flex flex-col xs:flex-row xs:items-start justify-between gap-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
                     <div className="min-w-0 flex-1 overflow-hidden">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="text-base font-bold text-white break-words truncate max-w-full">
@@ -1017,7 +1019,7 @@ export const LiabilitiesView: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0 self-end xs:self-auto overflow-x-auto no-scrollbar max-w-full">
+                    <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto overflow-x-auto no-scrollbar max-w-full">
                       <button
                         type="button"
                         onClick={() => setSelectedLoanForPay(loan)}
@@ -1068,7 +1070,7 @@ export const LiabilitiesView: React.FC = () => {
                                   setEditingLiability(loan);
                                   setIsAddLoanOpen(true);
                                 }}
-                                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
+                                className="px-2.5 py-2 min-h-[38px] rounded-lg text-xs font-semibold text-slate-200 hover:bg-slate-800/80 flex items-center gap-2 cursor-pointer text-left transition-colors"
                               >
                                 <Edit2 size={13} className="shrink-0 text-slate-400" />
                                 <span>Edit</span>
@@ -1078,12 +1080,9 @@ export const LiabilitiesView: React.FC = () => {
                                 role="menuitem"
                                 onClick={() => {
                                   setActiveMenuId(null);
-                                  if (expandedScheduleLoanId === loan.id) {
-                                    setExpandedScheduleLoanId(null);
-                                  }
-                                  deleteLiability(loan.id);
+                                  setLiabilityToDelete(loan);
                                 }}
-                                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer text-left w-full transition-colors"
+                                className="px-2.5 py-2 min-h-[38px] rounded-lg text-xs font-semibold text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer text-left w-full transition-colors"
                               >
                                 <Trash2 size={13} className="shrink-0 text-rose-400" />
                                 <span>Delete</span>
@@ -1213,8 +1212,8 @@ export const LiabilitiesView: React.FC = () => {
                       </div>
 
                       <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/60">
-                        <div className="max-h-64 overflow-y-auto">
-                          <table className="w-full text-xs">
+                        <div className="max-h-64 overflow-y-auto overflow-x-auto">
+                          <table className="w-full min-w-[440px] text-xs">
                             <thead className="bg-slate-950 text-slate-400 font-semibold sticky top-0 border-b border-slate-800">
                               <tr>
                                 <th className="py-2 px-2.5 text-left">Month</th>
@@ -1333,6 +1332,52 @@ export const LiabilitiesView: React.FC = () => {
             setSelectedCardForPay(target);
           }}
         />
+      )}
+
+      {/* Delete Liability Confirmation Modal */}
+      {liabilityToDelete && (
+        <Modal
+          isOpen={!!liabilityToDelete}
+          onClose={() => setLiabilityToDelete(null)}
+          title={liabilityToDelete.kind === 'loan' ? 'Delete Loan' : 'Delete Card'}
+          subtitle={getSafeLiabilityName(liabilityToDelete)}
+          footer={
+            <div className="flex items-center justify-end gap-2 w-full">
+              <button
+                type="button"
+                onClick={() => setLiabilityToDelete(null)}
+                className="min-h-[44px] px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold cursor-pointer hover:bg-slate-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (liabilityToDelete) {
+                    if (expandedScheduleLoanId === liabilityToDelete.id) {
+                      setExpandedScheduleLoanId(null);
+                    }
+                    await deleteLiability(liabilityToDelete.id);
+                    setLiabilityToDelete(null);
+                  }
+                }}
+                className="min-h-[44px] px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer transition-colors shadow-md shadow-rose-600/30 flex items-center gap-1.5"
+              >
+                <Trash2 size={14} />
+                <span>Delete</span>
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-2.5 py-2 text-xs text-slate-300">
+            <p>
+              Are you sure you want to permanently remove <strong className="text-white">{getSafeLiabilityName(liabilityToDelete)}</strong>?
+            </p>
+            <p className="text-slate-400">
+              This updates total debt, utilization metrics, and scheduled commitments. Historical ledger entries are preserved.
+            </p>
+          </div>
+        </Modal>
       )}
     </div>
   );

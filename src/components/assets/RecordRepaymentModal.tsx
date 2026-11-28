@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Receivable } from '../../types';
 import { formatMoney } from '../../lib/formatters';
+import { useBackDismiss } from '../../lib/modalBackStack';
 import { X, CheckCircle2, Landmark, AlertCircle, Handshake, Layers, Sparkles } from 'lucide-react';
 
 interface RecordRepaymentModalProps {
@@ -25,6 +26,8 @@ export const RecordRepaymentModal: React.FC<RecordRepaymentModalProps> = ({
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useBackDismiss(true, onClose);
 
   const bankAccounts = holdings.filter((h) => h.liquidityClass === 'Immediate');
   const currSym = currencies.find((c) => c.code === receivable.currency)?.symbol || '₹';
@@ -128,33 +131,43 @@ export const RecordRepaymentModal: React.FC<RecordRepaymentModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden animate-fade-in">
+    <div
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md max-h-[92dvh] bg-slate-900 border border-slate-800 rounded-xl shadow-2xl flex flex-col overflow-hidden animate-fade-in"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+        <div className="flex items-center justify-between p-4 border-b border-slate-800 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 shrink-0">
               {mode === 'cash_deposit' ? <CheckCircle2 size={18} /> : <Handshake size={18} />}
             </div>
-            <div>
-              <h2 className="text-base font-semibold text-slate-100">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold text-slate-100 truncate">
                 Reconcile Payment or Offset
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-400 truncate">
                 From {receivable.debtorName}
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
+            aria-label="Close"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleRepay} className="p-4 space-y-3.5 text-xs">
+        <form onSubmit={handleRepay} className="p-4 space-y-3.5 text-xs overflow-y-auto overscroll-contain flex-1">
           {error && (
             <div className="p-2.5 rounded-lg bg-rose-950/40 border border-rose-500/30 text-rose-300 flex items-center gap-2">
               <AlertCircle size={14} className="shrink-0" />
@@ -272,7 +285,7 @@ export const RecordRepaymentModal: React.FC<RecordRepaymentModalProps> = ({
           {/* Cascading Reconciliation & Settlement Preview */}
           {numericAmt > 0 && (
             <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-300 space-y-2">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-200 pb-1 border-b border-slate-850">
+              <div className="flex flex-wrap items-center justify-between gap-1 text-xs font-semibold text-slate-200 pb-1 border-b border-slate-800">
                 <div className="flex items-center gap-1.5 text-emerald-400">
                   <Layers size={13} />
                   <span>Cascading Paydown Breakdown</span>
@@ -309,7 +322,7 @@ export const RecordRepaymentModal: React.FC<RecordRepaymentModalProps> = ({
               </div>
 
               {/* Counterparty Net Remaining Status */}
-              <div className="pt-1.5 border-t border-slate-850 flex justify-between items-center">
+              <div className="pt-1.5 border-t border-slate-800 flex flex-wrap justify-between items-center gap-1">
                 <span className="font-medium text-slate-300">Debtor Settlement Status:</span>
                 {cascadeSimulation.allDebtsSettled ? (
                   <span className="font-semibold text-emerald-400 flex items-center gap-1">
@@ -364,18 +377,18 @@ export const RecordRepaymentModal: React.FC<RecordRepaymentModalProps> = ({
           </div>
 
           {/* Buttons */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
             <button
               type="button"
               onClick={onClose}
-              className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition-colors cursor-pointer"
+              className="px-4 min-h-[44px] rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors cursor-pointer disabled:opacity-50"
+              className="px-4 min-h-[44px] rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors cursor-pointer disabled:opacity-50"
             >
               {isSubmitting ? 'Saving...' : 'Confirm Reconciliation'}
             </button>

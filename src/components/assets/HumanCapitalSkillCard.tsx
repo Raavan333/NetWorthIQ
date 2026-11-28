@@ -684,7 +684,7 @@ export const HumanCapitalSkillCard: React.FC = () => {
 
             <div>
               <label className="block text-slate-300 font-semibold mb-1.5">Milestone Stage</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {[
                   { id: 'previous', label: 'Previous Role' },
                   { id: 'current_update', label: 'Current Role Update' },
@@ -907,7 +907,7 @@ export const HumanCapitalSkillCard: React.FC = () => {
               <label className="block text-slate-300 font-semibold mb-1.5">
                 How does the predicted compensation figure compare?
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {[
                   { id: 'too_low', label: 'Too Low (Undervalued)' },
                   { id: 'accurate', label: 'Accurate Market Value' },

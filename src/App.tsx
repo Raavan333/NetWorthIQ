@@ -25,10 +25,13 @@ import { ReceiveMoneyModal } from './components/common/ReceiveMoneyModal';
 import { HumanCapitalSkillCard } from './components/assets/HumanCapitalSkillCard';
 import { ReconciliationAuditModal } from './components/common/ReconciliationAuditModal';
 import { WhatIfSimulatorModal } from './components/simulator/WhatIfSimulatorModal';
+import { useBackDismiss } from './lib/modalBackStack';
+import { AlertTriangle, X } from 'lucide-react';
 
 const MainLayout: React.FC = () => {
   const {
     activeTab,
+    setActiveTab,
     activeModal,
     setActiveModal,
     isLocked,
@@ -37,7 +40,18 @@ const MainLayout: React.FC = () => {
     theme,
     readyGoalNotification,
     clearReadyGoalNotification,
+    storageRecoveryNotice,
+    dismissStorageRecoveryNotice,
   } = useApp();
+
+  // Hardware Back from secondary tabs returns to Home before exiting
+  useBackDismiss(
+    !isLocked && activeModal === null && activeTab !== 'home',
+    () => {
+      setActiveTab('home');
+    },
+    { handleEscape: false }
+  );
 
   const lastActivityRef = useRef<number>(Date.now());
 
@@ -231,7 +245,23 @@ const MainLayout: React.FC = () => {
       <TopHeader />
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full max-w-4xl mx-auto px-2.5 sm:px-6 py-3 sm:py-4 pb-24 sm:pb-28">
+      <main className="flex-1 w-full max-w-4xl mx-auto px-2.5 sm:px-6 py-3 sm:py-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pb-28">
+        {storageRecoveryNotice && (
+          <div className="mb-3 p-3 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs flex items-start justify-between gap-2">
+            <span className="flex items-start gap-2 leading-relaxed">
+              <AlertTriangle size={15} className="shrink-0 mt-0.5 text-amber-400" />
+              <span>{storageRecoveryNotice}</span>
+            </span>
+            <button
+              type="button"
+              onClick={dismissStorageRecoveryNotice}
+              className="min-w-[36px] min-h-[36px] rounded-lg hover:bg-amber-500/20 flex items-center justify-center shrink-0 cursor-pointer"
+              aria-label="Dismiss storage recovery notice"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
         {activeTab === 'home' && <HomeView />}
         {activeTab === 'assets' && <AssetsView />}
         {activeTab === 'liabilities' && <LiabilitiesView />}
@@ -287,9 +317,7 @@ const MainLayout: React.FC = () => {
           subtitle="Lifetime earning power, skill gap analysis, and compensation progression roadmap"
           maxWidth="max-w-4xl"
         >
-          <div className="max-h-[82vh] overflow-y-auto pr-1">
-            <HumanCapitalSkillCard />
-          </div>
+          <HumanCapitalSkillCard />
         </Modal>
       )}
 
